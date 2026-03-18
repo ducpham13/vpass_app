@@ -1,0 +1,533 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_text_styles.dart';
+import '../../../models/gym_model.dart';
+import '../../auth/auth_provider.dart';
+import '../../cards/gym_provider.dart';
+
+class GymFormScreen extends ConsumerStatefulWidget {
+  final GymModel? gym;
+  final bool isReadOnly;
+  final bool editOpsOnly;
+
+  const GymFormScreen({
+    super.key,
+    this.gym,
+    this.isReadOnly = false,
+    this.editOpsOnly = false,
+  });
+
+  @override
+  ConsumerState<GymFormScreen> createState() => _GymFormScreenState();
+}
+
+class _GymFormScreenState extends ConsumerState<GymFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _addressController;
+  late TextEditingController _cityController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _priceController;
+  late TextEditingController _ownerNameController;
+  late TextEditingController _partnerEmailController;
+  late TextEditingController _bankNameController;
+  late TextEditingController _bankCardNumberController;
+  late TextEditingController _bankAccountNameController;
+  late TextEditingController _feeRateController;
+  late TextEditingController _openTimeController;
+  late TextEditingController _closeTimeController;
+  late TextEditingController _emergencyNoticeController;
+  String _status = 'pending';
+  String _crowdLevel = 'average';
+  bool _isClosedOverride = false;
+  int _colorIndex = 1;
+  late TextEditingController _rejectionReasonController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.gym?.name ?? '');
+    _addressController = TextEditingController(text: widget.gym?.address ?? '');
+    _cityController = TextEditingController(text: widget.gym?.city ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.gym?.description ?? '',
+    );
+    _priceController = TextEditingController(
+      text: widget.gym?.pricePerMonth.toString() ?? '0',
+    );
+    _ownerNameController = TextEditingController(
+      text: widget.gym?.ownerName ?? '',
+    );
+    _partnerEmailController = TextEditingController(
+      text: widget.gym?.partnerEmail ?? '',
+    );
+    _bankNameController = TextEditingController(
+      text: widget.gym?.bankName ?? '',
+    );
+    _bankCardNumberController = TextEditingController(
+      text: widget.gym?.bankCardNumber ?? '',
+    );
+    _bankAccountNameController = TextEditingController(
+      text: widget.gym?.bankAccountName ?? '',
+    );
+    _feeRateController = TextEditingController(
+      text: (widget.gym?.feeRate ?? 0.05).toString(),
+    );
+    _openTimeController = TextEditingController(
+      text: widget.gym?.openTime ?? '06:00',
+    );
+    _closeTimeController = TextEditingController(
+      text: widget.gym?.closeTime ?? '22:00',
+    );
+    _emergencyNoticeController = TextEditingController(
+      text: widget.gym?.emergencyNotice ?? '',
+    );
+    _rejectionReasonController = TextEditingController(
+      text: widget.gym?.rejectionReason ?? '',
+    );
+    _status = widget.gym?.status ?? 'pending';
+    _crowdLevel = widget.gym?.crowdLevel ?? 'average';
+    _isClosedOverride = widget.gym?.isClosedOverride ?? false;
+    _colorIndex = widget.gym?.colorIndex ?? 1; // Default to 1 (Blue) if new
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _ownerNameController.dispose();
+    _partnerEmailController.dispose();
+    _bankNameController.dispose();
+    _bankCardNumberController.dispose();
+    _bankAccountNameController.dispose();
+    _feeRateController.dispose();
+    _openTimeController.dispose();
+    _closeTimeController.dispose();
+    _emergencyNoticeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final currentUser = ref.read(authProvider).user;
+    if (currentUser == null) return;
+
+    final isAdmin = currentUser.isSuperAdmin;
+
+    final gym = GymModel(
+      id: widget.gym?.id ?? '',
+      name: _nameController.text,
+      address: _addressController.text,
+      city: _cityController.text,
+      description: _descriptionController.text,
+      imageUrl: widget.gym?.imageUrl ?? '',
+      pricePerMonth: double.tryParse(_priceController.text) ?? 0,
+      ownerUid: widget.gym?.ownerUid ?? currentUser.uid,
+      ownerName: isAdmin
+          ? _ownerNameController.text
+          : (widget.gym?.ownerName ?? currentUser.name),
+      partnerEmail: isAdmin
+          ? _partnerEmailController.text
+          : (widget.gym?.partnerEmail ?? currentUser.email),
+      bankName: _bankNameController.text,
+      bankCardNumber: _bankCardNumberController.text,
+      bankAccountName: _bankAccountNameController.text,
+      feeRate: isAdmin
+          ? (double.tryParse(_feeRateController.text) ?? 0.05)
+          : (widget.gym?.feeRate ?? 0.05),
+      status: isAdmin ? _status : (widget.gym?.status ?? 'pending'),
+      createdAt: widget.gym?.createdAt,
+      openTime: _openTimeController.text,
+      closeTime: _closeTimeController.text,
+      crowdLevel: _crowdLevel,
+      isClosedOverride: _isClosedOverride,
+      emergencyNotice: _emergencyNoticeController.text.isEmpty
+          ? null
+          : _emergencyNoticeController.text,
+      lastOperationalReset: widget.gym?.lastOperationalReset ?? DateTime.now(),
+      colorIndex: _colorIndex,
+      rejectionReason: _rejectionReasonController.text.isEmpty
+          ? null
+          : _rejectionReasonController.text,
+    );
+
+    try {
+      if (widget.gym == null) {
+        await ref.read(gymRepositoryProvider).addGym(gym);
+      } else {
+        await ref.read(gymRepositoryProvider).updateGym(gym);
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('L?i: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = ref.watch(authProvider).user;
+    final isAdmin = currentUser?.isSuperAdmin ?? false;
+    final isEdit = widget.gym != null;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.isReadOnly
+              ? 'Gym Details'
+              : (widget.editOpsOnly
+                    ? 'Daily Operations'
+                    : (widget.gym == null
+                          ? 'Add Gym Partner'
+                          : 'Gym Management')),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isEdit && !isAdmin && !widget.isReadOnly) ...[
+                _buildSectionHeader('DAILY OPERATIONS', Icons.update),
+                const SizedBox(height: 16),
+                _buildOperationalSection(),
+                const SizedBox(height: 32),
+              ],
+              if (!widget.editOpsOnly) ...[
+                _buildSectionHeader('CONTRACT INFORMATION', Icons.description),
+                const SizedBox(height: 16),
+                _buildContractSection(isAdmin),
+                const SizedBox(height: 32),
+              ],
+              if (isAdmin && !widget.editOpsOnly && !widget.isReadOnly) ...[
+                _buildAdminOnlyFields(isEdit, isAdmin),
+                const SizedBox(height: 32),
+              ],
+              if (!widget.isReadOnly)
+                ElevatedButton(
+                  onPressed: _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    isAdmin
+                        ? 'SAVE GYM PARTNER'
+                        : (widget.gym == null
+                              ? 'SUBMIT FOR APPROVAL'
+                              : 'UPDATE STATUS'),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.accentBlue),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: AppTextStyles.labelLarge.copyWith(
+            color: AppColors.accentBlue,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOperationalSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Open Status Today', style: AppTextStyles.bodyMedium),
+              Switch(
+                value: !_isClosedOverride,
+                onChanged: (v) => setState(() => _isClosedOverride = !v),
+                activeThumbColor: AppColors.success,
+              ),
+            ],
+          ),
+          if (_isClosedOverride)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Note: This will override regular hours to "Closed Today"',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.warning,
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          Text('Crowd Level', style: AppTextStyles.bodyMedium),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'quiet',
+                label: Text('Quiet'),
+                icon: Icon(Icons.person_outline),
+              ),
+              ButtonSegment(
+                value: 'average',
+                label: Text('Average'),
+                icon: Icon(Icons.people_outline),
+              ),
+              ButtonSegment(
+                value: 'busy',
+                label: Text('Busy'),
+                icon: Icon(Icons.groups),
+              ),
+            ],
+            selected: {_crowdLevel},
+            onSelectionChanged: (v) => setState(() => _crowdLevel = v.first),
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _emergencyNoticeController,
+            decoration: const InputDecoration(
+              labelText: 'Emergency Notice (Optional)',
+              hintText: 'e.g. Closed for holiday...',
+              prefixIcon: Icon(Icons.warning_amber_rounded),
+            ),
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContractSection(bool isAdmin) {
+    final isEdit = widget.gym != null;
+    final canEdit =
+        !widget.isReadOnly &&
+        (isAdmin || widget.gym == null) &&
+        !(isAdmin && isEdit);
+    return Column(
+      children: [
+        TextFormField(
+          controller: _nameController,
+          enabled: canEdit,
+          decoration: const InputDecoration(labelText: 'Gym Name'),
+          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _addressController,
+          enabled: canEdit,
+          decoration: const InputDecoration(labelText: 'Address'),
+          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _cityController,
+          enabled: canEdit,
+          decoration: const InputDecoration(labelText: 'City'),
+          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+        ),
+        const SizedBox(height: 24),
+        if (isAdmin || widget.gym == null) ...[
+          Text(
+            'Gym Theme Color (Dashboard Card)',
+            style: AppTextStyles.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: AppColors.cardGradients.length - 1,
+              itemBuilder: (context, index) {
+                final realIndex = index + 1; // Skip red (0)
+                final colors = AppColors.cardGradients[realIndex];
+                final isSelected = _colorIndex == realIndex;
+                return GestureDetector(
+                  onTap: () => setState(() => _colorIndex = realIndex),
+                  child: Container(
+                    width: 50,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: colors),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, color: Colors.white)
+                        : null,
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _openTimeController,
+                enabled: canEdit,
+                decoration: const InputDecoration(
+                  labelText: 'Open Time',
+                  hintText: '06:00',
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _closeTimeController,
+                enabled: canEdit,
+                decoration: const InputDecoration(
+                  labelText: 'Close Time',
+                  hintText: '22:00',
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const SizedBox(height: 24),
+        TextFormField(
+          controller: _bankNameController,
+          enabled: canEdit,
+          decoration: const InputDecoration(labelText: 'Bank Name'),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _bankCardNumberController,
+          enabled: canEdit,
+          decoration: const InputDecoration(
+            labelText: 'Bank Card Number (Số tài khoản)',
+          ),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _bankAccountNameController,
+          enabled: canEdit,
+          decoration: const InputDecoration(
+            labelText: 'Account Holder Name (Tên chủ tài khoản)',
+          ),
+          textCapitalization: TextCapitalization.characters,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _priceController,
+          enabled: canEdit,
+          decoration: const InputDecoration(labelText: 'Price/Month (VND)'),
+          keyboardType: TextInputType.number,
+          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdminOnlyFields(bool isEdit, bool isAdmin) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('ADMIN CONTROLS', Icons.security),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _partnerEmailController,
+                enabled: !isEdit,
+                decoration: const InputDecoration(labelText: 'Partner Email'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _ownerNameController,
+                enabled: !isEdit,
+                decoration: const InputDecoration(labelText: 'Owner Name'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _feeRateController,
+                enabled:
+                    !isEdit || (isAdmin && (widget.gym?.feeRate ?? 0) <= 0),
+                decoration: InputDecoration(
+                  labelText: 'Fee Rate (0.0 - 1.0)',
+                  helperText: isEdit && (widget.gym?.feeRate ?? 0) > 0
+                      ? 'Fee rate is locked after initial save'
+                      : 'Set fee rate for this partner',
+                  helperStyle: isEdit && (widget.gym?.feeRate ?? 0) > 0
+                      ? const TextStyle(color: AppColors.textSecondary)
+                      : null,
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _status,
+                decoration: const InputDecoration(labelText: 'Approval Status'),
+                items: const [
+                  DropdownMenuItem(value: 'active', child: Text('Active')),
+                  DropdownMenuItem(
+                    value: 'pending',
+                    child: Text('Pending/Review'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'inactive',
+                    child: Text('Inactive/Closed'),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _status = v!),
+              ),
+              if (_status == 'rejected') ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _rejectionReasonController,
+                  decoration: const InputDecoration(
+                    labelText: 'Rejection Reason',
+                    hintText: 'Enter reason for rejection...',
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

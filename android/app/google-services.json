@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "141986153752",
+    "project_id": "vpass-ba101",
+    "storage_bucket": "vpass-ba101.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:141986153752:android:6063cc3eee4c86f3c2ca6d",
+        "android_client_info": {
+          "package_name": "com.vpass.vpass_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRRApyDsg2MyP3KVjjM5yuEfcLshmRlDM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
