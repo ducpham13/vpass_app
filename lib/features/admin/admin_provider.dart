@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../auth/auth_provider.dart';
 import '../cards/card_provider.dart';
 import '../cards/gym_provider.dart';
 import '../../models/card_model.dart';
 import '../../models/user_model.dart';
+
+/// Shared month state for all admin screens
+final selectedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 final allUsersProvider = StreamProvider<List<UserModel>>((ref) {
   return ref.read(authRepositoryProvider).getUsersStream();
@@ -45,12 +49,21 @@ final adminStatsProvider = Provider<AsyncValue<AdminStats>>((ref) {
   final usersAsync = ref.watch(allUsersProvider);
   final cardsAsync = ref.watch(allCardsStreamProvider);
   final gymsAsync = ref.watch(allGymsProvider);
+  final selectedMonth = ref.watch(selectedMonthProvider);
 
   return usersAsync.when(
     data: (users) => cardsAsync.when(
       data: (cards) => gymsAsync.when(
         data: (gyms) {
           final activeCards = cards.where((c) => c.isActive).toList();
+
+          // Filter cards by purchasedAt within selected month
+          final monthStart = DateTime(selectedMonth.year, selectedMonth.month, 1);
+          final monthEnd = DateTime(selectedMonth.year, selectedMonth.month + 1, 1);
+          final monthCards = cards.where((c) =>
+            c.purchasedAt.isAfter(monthStart.subtract(const Duration(milliseconds: 1))) &&
+            c.purchasedAt.isBefore(monthEnd)
+          ).toList();
           double totalRevenue = 0.0;
           double platformProfit = 0.0;
           double regularCardProfit = 0.0;
@@ -61,7 +74,7 @@ final adminStatsProvider = Provider<AsyncValue<AdminStats>>((ref) {
           double regularGymPayout = 0.0;
           double vipGymPayout = 0.0;
 
-          for (var card in cards) {
+          for (var card in monthCards) {
             totalRevenue += card.priceSnapshot;
             
             if (card.gymId != null) {

@@ -23,24 +23,15 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
-  late DateTime _selectedDate;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedDate = DateTime.now();
-  }
 
   void _previousMonth() {
-    setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1);
-    });
+    final current = ref.read(selectedMonthProvider);
+    ref.read(selectedMonthProvider.notifier).state = DateTime(current.year, current.month - 1);
   }
 
   void _nextMonth() {
-    setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1);
-    });
+    final current = ref.read(selectedMonthProvider);
+    ref.read(selectedMonthProvider.notifier).state = DateTime(current.year, current.month + 1);
   }
 
   @override
@@ -49,6 +40,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final stats = statsAsync.value ?? AdminStats();
     final authState = ref.watch(authProvider);
     final user = authState.user;
+    final selectedDate = ref.watch(selectedMonthProvider);
 
     final pendingGymsCount = ref.watch(allGymsProvider).when(
           data: (gyms) => gyms.where((g) => g.status == 'pending').length,
@@ -93,7 +85,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Tháng ${_selectedDate.month} / ${_selectedDate.year}',
+              'Tháng ${selectedDate.month} / ${selectedDate.year}',
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -357,7 +349,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           Text(
-            'Tháng ${_selectedDate.month} / ${_selectedDate.year}',
+            'Tháng ${ref.watch(selectedMonthProvider).month} / ${ref.watch(selectedMonthProvider).year}',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,

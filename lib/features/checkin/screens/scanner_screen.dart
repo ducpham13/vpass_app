@@ -191,7 +191,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Partner Scanner'),
+        title: const Text('Quét mã hội viên'),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -217,7 +217,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   final user = ref.watch(authProvider).user;
                   
                   return UserAvatar(
-                    name: user?.name ?? 'Partner',
+                    name: user?.name ?? 'Đối tác',
                     radius: 16,
                   );
                 },
@@ -291,7 +291,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Align QR code within the frame',
+                  'Căn chỉnh mã QR vào trong khung',
                   style: AppTextStyles.bodyMedium,
                 ),
               ),

@@ -120,7 +120,7 @@ class PartnerEarningsRepository {
     await _firestore.collection('withdrawals').doc(id).update({
       'status': status,
       'processedAt': FieldValue.serverTimestamp(),
-      'adminNote': ?adminNote,
+      'adminNote': adminNote,
     });
   }
 

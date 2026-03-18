@@ -15,12 +15,12 @@ class CheckinHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan History'),
+        title: const Text('Lịch sử quét mã'),
       ),
       body: historyAsync.when(
         data: (logs) {
           if (logs.isEmpty) {
-            return const Center(child: Text("No check-ins recorded yet"));
+            return const Center(child: Text("Chưa có lượt check-in nào"));
           }
 
           return ListView.builder(
@@ -76,7 +76,7 @@ class CheckinHistoryScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('L?i: $err')),
+        error: (err, stack) => Center(child: Text('Lỗi: $err')),
       ),
     );
   }

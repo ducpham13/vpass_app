@@ -5,36 +5,12 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../admin_provider.dart';
 
-class PlatformProfitScreen extends ConsumerStatefulWidget {
+class PlatformProfitScreen extends ConsumerWidget {
   const PlatformProfitScreen({super.key});
 
   @override
-  ConsumerState<PlatformProfitScreen> createState() => _PlatformProfitScreenState();
-}
-
-class _PlatformProfitScreenState extends ConsumerState<PlatformProfitScreen> {
-  late DateTime _selectedDate;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedDate = DateTime.now();
-  }
-
-  void _previousMonth() {
-    setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1);
-    });
-  }
-
-  void _nextMonth() {
-    setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedDate = ref.watch(selectedMonthProvider);
     final statsAsync = ref.watch(adminStatsProvider);
     final stats = statsAsync.value ?? AdminStats();
     
@@ -73,7 +49,7 @@ class _PlatformProfitScreenState extends ConsumerState<PlatformProfitScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildMonthSelector(),
+            _buildMonthSelector(ref, selectedDate),
             const SizedBox(height: 32),
             
             // Total Profit
@@ -171,7 +147,7 @@ class _PlatformProfitScreenState extends ConsumerState<PlatformProfitScreen> {
     );
   }
 
-  Widget _buildMonthSelector() {
+  Widget _buildMonthSelector(WidgetRef ref, DateTime selectedDate) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -183,7 +159,10 @@ class _PlatformProfitScreenState extends ConsumerState<PlatformProfitScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
-            onTap: _previousMonth,
+            onTap: () {
+              final current = ref.read(selectedMonthProvider);
+              ref.read(selectedMonthProvider.notifier).state = DateTime(current.year, current.month - 1);
+            },
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -194,7 +173,7 @@ class _PlatformProfitScreenState extends ConsumerState<PlatformProfitScreen> {
             ),
           ),
           Text(
-            'Tháng ${_selectedDate.month} / ${_selectedDate.year}',
+            'Tháng ${selectedDate.month} / ${selectedDate.year}',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -202,7 +181,10 @@ class _PlatformProfitScreenState extends ConsumerState<PlatformProfitScreen> {
             ),
           ),
           GestureDetector(
-            onTap: _nextMonth,
+            onTap: () {
+              final current = ref.read(selectedMonthProvider);
+              ref.read(selectedMonthProvider.notifier).state = DateTime(current.year, current.month + 1);
+            },
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(

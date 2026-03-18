@@ -102,7 +102,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (user == null) {
       return const Scaffold(
         backgroundColor: AppColors.backgroundPrimary,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.accentBlue),
+        ),
       );
     }
 

@@ -182,12 +182,12 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
       appBar: AppBar(
         title: Text(
           widget.isReadOnly
-              ? 'Gym Details'
+              ? 'Chi tiết phòng tập'
               : (widget.editOpsOnly
-                    ? 'Daily Operations'
+                    ? 'Vận hành hàng ngày'
                     : (widget.gym == null
-                          ? 'Add Gym Partner'
-                          : 'Gym Management')),
+                          ? 'Đăng ký phòng tập'
+                          : 'Quản lý phòng tập')),
         ),
       ),
       body: SingleChildScrollView(
@@ -198,13 +198,13 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (isEdit && !isAdmin && !widget.isReadOnly) ...[
-                _buildSectionHeader('DAILY OPERATIONS', Icons.update),
+                _buildSectionHeader('VẬN HÀNH HÀNG NGÀY', Icons.update),
                 const SizedBox(height: 16),
                 _buildOperationalSection(),
                 const SizedBox(height: 32),
               ],
               if (!widget.editOpsOnly) ...[
-                _buildSectionHeader('CONTRACT INFORMATION', Icons.description),
+                _buildSectionHeader('THÔNG TIN HỢP ĐỒNG', Icons.description),
                 const SizedBox(height: 16),
                 _buildContractSection(isAdmin),
                 const SizedBox(height: 32),
@@ -225,10 +225,10 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                   ),
                   child: Text(
                     isAdmin
-                        ? 'SAVE GYM PARTNER'
+                        ? 'LƯU THÔNG TIN'
                         : (widget.gym == null
-                              ? 'SUBMIT FOR APPROVAL'
-                              : 'UPDATE STATUS'),
+                              ? 'GỬI YÊU CẦU DUYỆT'
+                              : 'LƯU THAY ĐỔI'),
                   ),
                 ),
             ],
@@ -268,7 +268,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Open Status Today', style: AppTextStyles.bodyMedium),
+              Text('Trạng thái mở cửa hôm nay', style: AppTextStyles.bodyMedium),
               Switch(
                 value: !_isClosedOverride,
                 onChanged: (v) => setState(() => _isClosedOverride = !v),
@@ -280,30 +280,30 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(
-                'Note: This will override regular hours to "Closed Today"',
+                'Lưu ý: Lựa chọn này sẽ ghi đè giờ hoạt động bình thường thành "Đóng cửa hôm nay"',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.warning,
                 ),
               ),
             ),
           const SizedBox(height: 16),
-          Text('Crowd Level', style: AppTextStyles.bodyMedium),
+          Text('Mức độ đông đúc', style: AppTextStyles.bodyMedium),
           const SizedBox(height: 12),
           SegmentedButton<String>(
             segments: [
               ButtonSegment(
                 value: 'quiet',
-                label: Text('Quiet'),
+                label: Text('Vắng'),
                 icon: Icon(Icons.person_outline),
               ),
               ButtonSegment(
                 value: 'average',
-                label: Text('Average'),
+                label: Text('Bình thường'),
                 icon: Icon(Icons.people_outline),
               ),
               ButtonSegment(
                 value: 'busy',
-                label: Text('Busy'),
+                label: Text('Đông'),
                 icon: Icon(Icons.groups),
               ),
             ],
@@ -314,8 +314,8 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
           TextFormField(
             controller: _emergencyNoticeController,
             decoration: const InputDecoration(
-              labelText: 'Emergency Notice (Optional)',
-              hintText: 'e.g. Closed for holiday...',
+              labelText: 'Thông báo khẩn cấp (Không bắt buộc)',
+              hintText: 'VD: Nghỉ lễ, sửa chữa...',
               prefixIcon: Icon(Icons.warning_amber_rounded),
             ),
             maxLines: 2,
@@ -336,27 +336,27 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
         TextFormField(
           controller: _nameController,
           enabled: canEdit,
-          decoration: const InputDecoration(labelText: 'Gym Name'),
-          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+          decoration: const InputDecoration(labelText: 'Tên phòng tập'),
+          validator: (v) => v?.isEmpty ?? true ? 'Bắt buộc' : null,
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _addressController,
           enabled: canEdit,
-          decoration: const InputDecoration(labelText: 'Address'),
-          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+          decoration: const InputDecoration(labelText: 'Địa chỉ'),
+          validator: (v) => v?.isEmpty ?? true ? 'Bắt buộc' : null,
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _cityController,
           enabled: canEdit,
-          decoration: const InputDecoration(labelText: 'City'),
-          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+          decoration: const InputDecoration(labelText: 'Thành phố'),
+          validator: (v) => v?.isEmpty ?? true ? 'Bắt buộc' : null,
         ),
         const SizedBox(height: 24),
         if (isAdmin || widget.gym == null) ...[
           Text(
-            'Gym Theme Color (Dashboard Card)',
+            'Màu chủ đạo (Hiển thị trên thẻ Dashboard)',
             style: AppTextStyles.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -399,7 +399,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                 controller: _openTimeController,
                 enabled: canEdit,
                 decoration: const InputDecoration(
-                  labelText: 'Open Time',
+                  labelText: 'Giờ mở cửa',
                   hintText: '06:00',
                 ),
               ),
@@ -410,7 +410,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                 controller: _closeTimeController,
                 enabled: canEdit,
                 decoration: const InputDecoration(
-                  labelText: 'Close Time',
+                  labelText: 'Giờ đóng cửa',
                   hintText: '22:00',
                 ),
               ),
@@ -422,14 +422,14 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
         TextFormField(
           controller: _bankNameController,
           enabled: canEdit,
-          decoration: const InputDecoration(labelText: 'Bank Name'),
+          decoration: const InputDecoration(labelText: 'Tên ngân hàng'),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _bankCardNumberController,
           enabled: canEdit,
           decoration: const InputDecoration(
-            labelText: 'Bank Card Number (Số tài khoản)',
+            labelText: 'Số tài khoản ngân hàng',
           ),
           keyboardType: TextInputType.number,
         ),
@@ -438,7 +438,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
           controller: _bankAccountNameController,
           enabled: canEdit,
           decoration: const InputDecoration(
-            labelText: 'Account Holder Name (Tên chủ tài khoản)',
+            labelText: 'Tên chủ tài khoản',
           ),
           textCapitalization: TextCapitalization.characters,
         ),
@@ -446,9 +446,9 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
         TextFormField(
           controller: _priceController,
           enabled: canEdit,
-          decoration: const InputDecoration(labelText: 'Price/Month (VND)'),
+          decoration: const InputDecoration(labelText: 'Giá gói tháng (VND)'),
           keyboardType: TextInputType.number,
-          validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+          validator: (v) => v?.isEmpty ?? true ? 'Bắt buộc' : null,
         ),
       ],
     );
@@ -458,7 +458,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('ADMIN CONTROLS', Icons.security),
+        _buildSectionHeader('BẢNG ĐIỀU KHIỂN ADMIN', Icons.security),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
@@ -472,13 +472,13 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
               TextFormField(
                 controller: _partnerEmailController,
                 enabled: !isEdit,
-                decoration: const InputDecoration(labelText: 'Partner Email'),
+                decoration: const InputDecoration(labelText: 'Email đối tác'),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ownerNameController,
                 enabled: !isEdit,
-                decoration: const InputDecoration(labelText: 'Owner Name'),
+                decoration: const InputDecoration(labelText: 'Tên chủ sở hữu'),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -486,10 +486,10 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                 enabled:
                     !isEdit || (isAdmin && (widget.gym?.feeRate ?? 0) <= 0),
                 decoration: InputDecoration(
-                  labelText: 'Fee Rate (0.0 - 1.0)',
+                  labelText: 'Tỷ lệ phí (0.0 - 1.0)',
                   helperText: isEdit && (widget.gym?.feeRate ?? 0) > 0
-                      ? 'Fee rate is locked after initial save'
-                      : 'Set fee rate for this partner',
+                      ? 'Tỷ lệ phí được khóa sau khi tạo'
+                      : 'Thiết lập tỷ lệ phí cho đối tác này',
                   helperStyle: isEdit && (widget.gym?.feeRate ?? 0) > 0
                       ? const TextStyle(color: AppColors.textSecondary)
                       : null,
@@ -499,16 +499,16 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _status,
-                decoration: const InputDecoration(labelText: 'Approval Status'),
+                decoration: const InputDecoration(labelText: 'Trạng thái phê duyệt'),
                 items: const [
-                  DropdownMenuItem(value: 'active', child: Text('Active')),
+                  DropdownMenuItem(value: 'active', child: Text('Đang hoạt động')),
                   DropdownMenuItem(
                     value: 'pending',
-                    child: Text('Pending/Review'),
+                    child: Text('Chờ duyệt/Xem xét'),
                   ),
                   DropdownMenuItem(
                     value: 'inactive',
-                    child: Text('Inactive/Closed'),
+                    child: Text('Ngừng hoạt động/Đóng cửa'),
                   ),
                 ],
                 onChanged: (v) => setState(() => _status = v!),
@@ -518,8 +518,8 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                 TextFormField(
                   controller: _rejectionReasonController,
                   decoration: const InputDecoration(
-                    labelText: 'Rejection Reason',
-                    hintText: 'Enter reason for rejection...',
+                    labelText: 'Lý do từ chối',
+                    hintText: 'Nhập lý do từ chối...',
                   ),
                   maxLines: 2,
                 ),

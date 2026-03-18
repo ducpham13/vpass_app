@@ -4,6 +4,7 @@ class CardModel {
   final String id;
   final String userId;
   final String? gymId;
+  final String? gymName;
   final String type; // "single" | "membership"
   final String status; // "active" | "expired" | "superseded"
   final int colorIndex; // 0-4
@@ -20,6 +21,7 @@ class CardModel {
     required this.id,
     required this.userId,
     this.gymId,
+    this.gymName,
     required this.type,
     required this.status,
     required this.colorIndex,
@@ -38,6 +40,7 @@ class CardModel {
       id: id,
       userId: data['userId'] ?? '',
       gymId: data['gymId'],
+      gymName: data['gymName'],
       type: data['type'] ?? 'single',
       status: data['status'] ?? 'active',
       colorIndex: data['colorIndex'] ?? 0,
@@ -56,6 +59,7 @@ class CardModel {
     return {
       'userId': userId,
       if (gymId != null) 'gymId': gymId,
+      if (gymName != null) 'gymName': gymName,
       'type': type,
       'status': status,
       'colorIndex': colorIndex,

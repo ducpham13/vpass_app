@@ -32,7 +32,9 @@ class WithdrawalModel {
       status: map['status'] ?? 'pending',
       timestamp: (map['timestamp'] as Timestamp).toDate(),
       bankInfo: map['bankInfo'] ?? {},
-      processedAt: map['processedAt'] != null ? (map['processedAt'] as Timestamp).toDate() : null,
+      processedAt: map['processedAt'] != null
+          ? (map['processedAt'] as Timestamp).toDate()
+          : null,
       adminNote: map['adminNote'],
     );
   }
@@ -45,7 +47,9 @@ class WithdrawalModel {
       'status': status,
       'timestamp': FieldValue.serverTimestamp(),
       'bankInfo': bankInfo,
-      'processedAt': processedAt != null ? Timestamp.fromDate(processedAt!) : null,
+      'processedAt': processedAt != null
+          ? Timestamp.fromDate(processedAt!)
+          : null,
       'adminNote': adminNote,
     };
   }

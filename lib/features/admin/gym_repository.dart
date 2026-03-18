@@ -158,6 +158,7 @@ class GymRepository {
           id: cardId,
           userId: uid,
           gymId: gym.id,
+          gymName: gym.name,
           type: 'membership',
           status: 'active',
           colorIndex: (gym.name.length) % 5, // Simple deterministic color
@@ -249,6 +250,7 @@ class GymRepository {
           id: cardId,
           userId: uid,
           gymId: null, // Global Card
+          gymName: 'Vpass Global Member',
           type: 'membership',
           status: 'active',
           colorIndex: 2, // Purple/Nebula color index
