@@ -42,20 +42,6 @@ class _PartnerEarningsScreenState extends ConsumerState<PartnerEarningsScreen> {
       decimalDigits: 0,
     );
 
-    final stats = earningsAsync.value ?? {
-      'total': 0.0,
-      'availableRevenue': 0.0,
-      'paid': 0.0,
-      'pending': 0.0,
-      'availableToWithdraw': 0.0,
-    };
-
-    final totalEarned = stats['total'] ?? 0.0;
-    final locked = (totalEarned - (stats['availableRevenue'] ?? 0.0)).clamp(0.0, double.infinity);
-    final paid = stats['paid'] ?? 0.0;
-    final pendingWithdrawal = stats['pending'] ?? 0.0;
-    final availableToWithdraw = stats['availableToWithdraw'] ?? 0.0;
-
     final gym = gymAsync.value;
 
     return Scaffold(
@@ -73,24 +59,61 @@ class _PartnerEarningsScreenState extends ConsumerState<PartnerEarningsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  children: [
-                    _buildBalanceCard(
-                      availableToWithdraw,
-                      currencyFormat,
-                      context,
-                      ref,
-                      gym,
+                child: earningsAsync.when(
+                  data: (stats) {
+                    final totalEarned = stats['total'] ?? 0.0;
+                    final availableRevenue = stats['availableRevenue'] ?? 0.0;
+                    final locked = (totalEarned - availableRevenue).clamp(0.0, double.infinity);
+                    final paid = stats['paid'] ?? 0.0;
+                    final pendingWithdrawal = stats['pending'] ?? 0.0;
+                    final availableToWithdraw = stats['availableToWithdraw'] ?? 0.0;
+                    
+                    return Column(
+                      children: [
+                        _buildBalanceCard(
+                          availableToWithdraw,
+                          currencyFormat,
+                          context,
+                          ref,
+                          gym,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _buildStatsRow(
+                          totalEarned,
+                          paid,
+                          locked,
+                          pendingWithdrawal,
+                          currencyFormat,
+                        ),
+                      ],
+                    );
+                  },
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildStatsRow(
-                      totalEarned,
-                      paid,
-                      locked,
-                      pendingWithdrawal,
-                      currencyFormat,
+                  ),
+                  error: (err, stack) => Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.danger.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                    child: Column(
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.danger),
+                        const SizedBox(height: 8),
+                        Text('Lỗi tải doanh thu: $err', 
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                        TextButton(
+                          onPressed: () => ref.invalidate(earningsProvider(widget.gymId)),
+                          child: const Text('THỬ LẠI'),
+                        )
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

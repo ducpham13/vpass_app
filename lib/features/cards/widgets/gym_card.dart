@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/gym_model.dart';
 import '../../../shared/glass_container.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class GymCard extends StatelessWidget {
   final GymModel gym;
@@ -10,6 +11,8 @@ class GymCard extends StatelessWidget {
   final bool showOperationalInfo;
   final String? customBadgeText;
   final bool useSolidColor;
+  final double? currentCardUsage; // For membership
+  final double? cardPrice; // For membership
 
   const GymCard({
     super.key,
@@ -18,6 +21,8 @@ class GymCard extends StatelessWidget {
     this.showOperationalInfo = true,
     this.customBadgeText,
     this.useSolidColor = false,
+    this.currentCardUsage,
+    this.cardPrice,
   });
 
   @override
@@ -68,6 +73,19 @@ class GymCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              // NEW: Image Header (Responsive) - Below the Name Bar as requested
+              if (gym.imageUrl.isNotEmpty)
+                CachedNetworkImage(
+                  imageUrl: gym.imageUrl,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                  placeholder: (context, url) => Container(
+                    height: 100,
+                    color: Colors.white.withOpacity(0.05),
+                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  errorWidget: (context, url, error) => const SizedBox.shrink(),
+                ),
               // 2. NAVY BODY
               Container(
                 width: double.infinity,
@@ -171,6 +189,42 @@ class GymCard extends StatelessWidget {
                       const SizedBox(height: 12),
                       _buildCrowdLevel(),
 
+                      if (currentCardUsage != null && cardPrice != null) ...[
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.white10),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'SỬ DỤNG',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: Colors.white38,
+                                fontSize: 10,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            Text(
+                              '${((currentCardUsage! / (cardPrice! * 0.95)) * 100).toInt()}%',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: AppColors.accentBlue,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: (currentCardUsage! / (cardPrice! * 0.95)).clamp(0.0, 1.0),
+                            backgroundColor: Colors.white12,
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentBlue),
+                            minHeight: 4,
+                          ),
+                        ),
+                      ],
+
                       // Emergency Notice (customer side)
                       if (gym.emergencyNotice != null &&
                           gym.emergencyNotice!.isNotEmpty) ...[
@@ -235,14 +289,23 @@ class GymCard extends StatelessWidget {
                       top: Radius.circular(24),
                     ),
                     child: gym.imageUrl.isNotEmpty
-                        ? Image.network(
-                            gym.imageUrl,
-                            height: 160,
+                        ? CachedNetworkImage(
+                            imageUrl: gym.imageUrl,
                             width: double.infinity,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain, // Keep original size/aspect ratio
+                            placeholder: (context, url) => Container(
+                              height: 160,
+                              color: AppColors.accentBlue.withOpacity(0.1),
+                              child: const Center(child: CircularProgressIndicator()),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              height: 160,
+                              color: AppColors.accentBlue.withOpacity(0.1),
+                              child: const Icon(Icons.error_outline),
+                            ),
                           )
                         : Container(
-                            height: 160,
+                            height: 100,
                             width: double.infinity,
                             color: AppColors.accentBlue.withOpacity(0.1),
                           ),

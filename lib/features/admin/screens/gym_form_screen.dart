@@ -28,7 +28,6 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _addressController;
   late TextEditingController _cityController;
-  late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _ownerNameController;
   late TextEditingController _partnerEmailController;
@@ -52,9 +51,6 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
     _nameController = TextEditingController(text: widget.gym?.name ?? '');
     _addressController = TextEditingController(text: widget.gym?.address ?? '');
     _cityController = TextEditingController(text: widget.gym?.city ?? '');
-    _descriptionController = TextEditingController(
-      text: widget.gym?.description ?? '',
-    );
     _priceController = TextEditingController(
       text: widget.gym?.pricePerMonth.toString() ?? '0',
     );
@@ -74,7 +70,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
       text: widget.gym?.bankAccountName ?? '',
     );
     _feeRateController = TextEditingController(
-      text: (widget.gym?.feeRate ?? 0.05).toString(),
+      text: (widget.gym?.feeRate ?? 0.1).toString(),
     );
     _openTimeController = TextEditingController(
       text: widget.gym?.openTime ?? '06:00',
@@ -102,7 +98,6 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
     _nameController.dispose();
     _addressController.dispose();
     _cityController.dispose();
-    _descriptionController.dispose();
     _priceController.dispose();
     _ownerNameController.dispose();
     _partnerEmailController.dispose();
@@ -131,7 +126,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
       name: _nameController.text,
       address: _addressController.text,
       city: _cityController.text,
-      description: _descriptionController.text,
+      description: '', // Ghi chú đã bị loại bỏ
       imageUrl: _imageUrlController.text,
       pricePerMonth: double.tryParse(_priceController.text) ?? 0,
       ownerUid: widget.gym?.ownerUid ?? currentUser.uid,
@@ -145,8 +140,8 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
       bankCardNumber: _bankCardNumberController.text,
       bankAccountName: _bankAccountNameController.text,
       feeRate: isAdmin
-          ? (double.tryParse(_feeRateController.text) ?? 0.05)
-          : (widget.gym?.feeRate ?? 0.05),
+          ? (double.tryParse(_feeRateController.text) ?? 0.1)
+          : (widget.gym?.feeRate ?? 0.1),
       status: isAdmin ? _status : (widget.gym?.status ?? 'pending'),
       createdAt: widget.gym?.createdAt,
       openTime: _openTimeController.text,
@@ -162,6 +157,19 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
           ? null
           : _rejectionReasonController.text,
     );
+
+    // Validate Time Range
+    if (!Validators.isBefore(gym.openTime, gym.closeTime)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Giờ mở cửa phải sớm hơn giờ đóng cửa!'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       if (widget.gym == null) {
@@ -363,18 +371,8 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
         ),
         const SizedBox(height: 12),
         TextFormField(
-          controller: _descriptionController,
-          enabled: canEdit,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Mô tả phòng tập (Không bắt buộc)',
-            hintText: 'VD: Phòng tập hiện đại với đầy đủ thiết bị...',
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
           controller: _imageUrlController,
-          enabled: canEdit,
+          enabled: canEdit || isOwner,
           decoration: const InputDecoration(
             labelText: 'Ảnh phòng tập (URL - Không bắt buộc)',
             hintText: 'https://example.com/image.jpg',
@@ -461,7 +459,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                   labelText: 'Giờ mở cửa',
                   hintText: '06:00',
                 ),
-                validator: (v) => Validators.validateNotEmpty(v, 'Giờ mở cửa'),
+                validator: (v) => Validators.validateTimeFormat(v),
               ),
             ),
             const SizedBox(width: 16),
@@ -473,7 +471,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                   labelText: 'Giờ đóng cửa',
                   hintText: '22:00',
                 ),
-                validator: (v) => Validators.validateNotEmpty(v, 'Giờ đóng cửa'),
+                validator: (v) => Validators.validateTimeFormat(v),
               ),
             ),
           ],

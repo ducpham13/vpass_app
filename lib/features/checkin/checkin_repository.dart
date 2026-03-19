@@ -42,19 +42,38 @@ class CheckinRepository {
     return _firestore
         .collection('checkins')
         .where('gymId', isEqualTo: gymId)
-        .orderBy('timestamp', descending: true)
-        .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => doc.data()).toList();
+          // Client-side Sort: timestamp DESC
+          list.sort((a, b) {
+            final tsA = a['timestamp'] as Timestamp?;
+            final tsB = b['timestamp'] as Timestamp?;
+            if (tsA == null) return 1;
+            if (tsB == null) return -1;
+            return tsB.compareTo(tsA);
+          });
+          return list.take(50).toList();
+        });
   }
 
   Stream<List<Map<String, dynamic>>> getUserCheckinHistory(String userId) {
     return _firestore
         .collection('checkins')
         .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => doc.data()).toList();
+          // Client-side Sort: timestamp DESC
+          list.sort((a, b) {
+            final tsA = a['timestamp'] as Timestamp?;
+            final tsB = b['timestamp'] as Timestamp?;
+            if (tsA == null) return 1;
+            if (tsB == null) return -1;
+            return tsB.compareTo(tsA);
+          });
+          return list;
+        });
   }
 
   Future<CheckinResult> processCheckIn(String qrData, String partnerGymId) async {

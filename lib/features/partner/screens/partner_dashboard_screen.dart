@@ -13,6 +13,7 @@ import '../../auth/screens/profile_screen.dart';
 import '../../auth/auth_provider.dart';
 import '../partner_earnings_provider.dart';
 import 'partner_earnings_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PartnerDashboardScreen extends ConsumerWidget {
   const PartnerDashboardScreen({super.key});
@@ -48,7 +49,12 @@ class PartnerDashboardScreen extends ConsumerWidget {
       ),
       body: gymsAsync.when(
         data: (gyms) {
-          if (gyms.isEmpty) {
+          final sortedGyms = [...gyms]..sort((a, b) {
+            final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
+          if (sortedGyms.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -71,9 +77,9 @@ class PartnerDashboardScreen extends ConsumerWidget {
 
           return ListView.builder(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: gyms.length,
+            itemCount: sortedGyms.length,
             itemBuilder: (context, index) {
-              final gym = gyms[index];
+              final gym = sortedGyms[index];
               final isPending = gym.status == 'pending';
               final isInactive = gym.status == 'inactive';
               
@@ -158,6 +164,26 @@ class PartnerDashboardScreen extends ConsumerWidget {
                         ],
                       ),
                         
+                        // NEW: Image Display for Partner Dashboard
+                        if (gym.imageUrl.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: CachedNetworkImage(
+                                imageUrl: gym.imageUrl,
+                                width: double.infinity,
+                                fit: BoxFit.contain,
+                                placeholder: (context, url) => Container(
+                                  height: 100,
+                                  color: Colors.white.withOpacity(0.05),
+                                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                ),
+                                errorWidget: (context, url, error) => const SizedBox.shrink(),
+                              ),
+                            ),
+                          ),
+                          
                         const SizedBox(height: 12),
                         
                         // Earnings Summary

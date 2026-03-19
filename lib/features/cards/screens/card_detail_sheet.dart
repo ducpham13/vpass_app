@@ -39,21 +39,25 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final gymsAsync = ref.watch(gymsProvider);
+    final cardAsync = ref.watch(cardDetailProvider(widget.card.id));
+    
+    // Use the latest card data from stream, falling back to initial widget.card
+    final card = cardAsync.value ?? widget.card;
     
     // Auto-set the single gym if not global and not set yet
-    final gym = gymsAsync.whenOrNull(data: (gyms) => gyms.firstWhereOrNull((g) => g.id == widget.card.gymId));
-    if (widget.card.gymId != null && _selectedGymForCheckin == null && gym != null) {
+    final gym = gymsAsync.whenOrNull(data: (gyms) => gyms.firstWhereOrNull((g) => g.id == card.gymId));
+    if (card.gymId != null && _selectedGymForCheckin == null && gym != null) {
       _selectedGymForCheckin = gym;
     }
 
     final displayGym = _selectedGymForCheckin ?? gym ?? GymModel(
-      id: widget.card.gymId ?? '',
-      name: widget.card.gymId == null ? 'Vpass Global Member' : 'Gym Membership',
+      id: card.gymId ?? '',
+      name: card.gymId == null ? 'Vpass Global Member' : 'Gym Membership',
       address: 'Membership Details',
       city: '',
       description: '',
       imageUrl: '',
-      pricePerMonth: widget.card.priceSnapshot,
+      pricePerMonth: card.priceSnapshot,
       ownerUid: '',
       ownerName: '',
       partnerEmail: '',
@@ -69,12 +73,12 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
     );
 
     // ── Determine badge text based on card type ──
-    final daysLeft = widget.card.endDate.difference(DateTime.now()).inDays;
+    final daysLeft = card.endDate.difference(DateTime.now()).inDays;
     String? badgeText;
 
-    final bool isRegularCard = widget.card.gymId != null; // Regular monthly card
-    final bool isVipCard = widget.card.gymId == null && widget.initialGym == null; // VIP main view
-    final bool isGymInVip = widget.card.gymId == null && widget.initialGym != null; // Gym selected within VIP
+    final bool isRegularCard = card.gymId != null; // Regular monthly card
+    final bool isVipCard = card.gymId == null && widget.initialGym == null; // VIP main view
+    final bool isGymInVip = card.gymId == null && widget.initialGym != null; // Gym selected within VIP
 
     if (isRegularCard) {
       // Regular card: show "Còn X ngày"
@@ -113,7 +117,7 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Hero(
-                      tag: 'card_${widget.card.id}',
+                      tag: 'card_${card.id}',
                       child: Material(
                         color: Colors.transparent,
                         child: GymCard(
@@ -121,21 +125,22 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
                           showOperationalInfo: false,
                           customBadgeText: badgeText,
                           useSolidColor: true,
+                          currentCardUsage: card.usedValue,
+                          cardPrice: card.membershipPrice,
                           onTap: () {},
                         ),
                       ),
                     ),
                     
-                    // ── VIP card only: show quota section ──
-                    if (widget.card.isMembership && widget.card.gymId == null) ...[
+                    if (card.isMembership && card.gymId == null) ...[
                       const SizedBox(height: AppSpacing.lg),
-                      _buildQuotaSection(widget.card, _selectedGymForCheckin),
+                      _buildQuotaSection(card, _selectedGymForCheckin),
                     ],
 
                     // ── Regular card: show simple "days remaining" info ──
-                    if (isRegularCard && widget.card.isMembership) ...[
+                    if (isRegularCard && card.isMembership) ...[
                       const SizedBox(height: AppSpacing.lg),
-                      _buildRegularCardInfo(widget.card),
+                      _buildRegularCardInfo(card),
                     ],
 
                     const SizedBox(height: AppSpacing.xl),
@@ -151,10 +156,10 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
                     
                     const SizedBox(height: AppSpacing.xl),
                     
-                    if (!widget.card.isExpired) ...[
+                    if (!card.isExpired) ...[
                       GalaxyButton(
                         text: 'TẠO MÃ QR CHECK-IN',
-                        onPressed: (widget.card.gymId == null && _selectedGymForCheckin == null)
+                        onPressed: (card.gymId == null && _selectedGymForCheckin == null)
                           ? null 
                           : () {
                               Navigator.pop(context);
@@ -162,17 +167,17 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => QrScreen(
-                                    card: widget.card,
-                                    gymId: widget.card.gymId ?? _selectedGymForCheckin!.id,
+                                    card: card,
+                                    gymId: card.gymId ?? _selectedGymForCheckin!.id,
                                   ),
                                 ),
                               );
                             },
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      if (widget.card.gymId != null) // Only for single gym cards
+                      if (card.gymId != null) // Only for single gym cards
                         TextButton(
-                          onPressed: () => _handleCancel(context, ref),
+                          onPressed: () => _handleCancel(context, ref, card),
                           style: TextButton.styleFrom(foregroundColor: AppColors.danger),
                           child: const Text('Hủy thẻ thành viên này', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
@@ -188,7 +193,7 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
     );
   }
 
-  Future<void> _handleCancel(BuildContext context, WidgetRef ref) async {
+  Future<void> _handleCancel(BuildContext context, WidgetRef ref, CardModel card) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -208,7 +213,7 @@ class _CardDetailSheetState extends ConsumerState<CardDetailSheet> {
 
     if (confirmed == true) {
       await ref.read(cardRepositoryProvider).updateCardStatus(
-        widget.card.id, 
+        card.id, 
         'expired',
         reason: 'Cancelled by User',
       );

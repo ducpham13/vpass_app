@@ -116,7 +116,6 @@ class GymRepository {
     return _firestore
         .collection('gyms')
         .where('owner.uid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => GymModel.fromMap(doc.id, doc.data()))
@@ -293,6 +292,23 @@ class GymRepository {
         return true;
       });
     } catch (e) {
+      return false;
+    }
+  }
+
+  /// Update gym profile (image and description) - called by owners
+  Future<bool> updateGymProfile(String gymId, {String? imageUrl, String? description}) async {
+    try {
+      final updates = <String, dynamic>{};
+      if (imageUrl != null) updates['info.imageUrl'] = imageUrl;
+      if (description != null) updates['info.description'] = description;
+      
+      if (updates.isEmpty) return true;
+      
+      await _firestore.collection('gyms').doc(gymId).update(updates);
+      return true;
+    } catch (e) {
+      print('Error updating gym profile: $e');
       return false;
     }
   }

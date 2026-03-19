@@ -15,3 +15,7 @@ final cardProvider = StreamProvider<List<CardModel>>((ref) {
 
   return ref.read(cardRepositoryProvider).getUserCards(user.uid);
 });
+
+final cardDetailProvider = StreamProvider.family<CardModel?, String>((ref, cardId) {
+  return ref.read(cardRepositoryProvider).getCardStream(cardId);
+});

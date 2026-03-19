@@ -241,7 +241,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Text(
-              'Lỗi tải Dashboard: $e\nVui lòng SEED lại dữ liệu.',
+              'Lỗi tải Dashboard: $e\nVui lòng kiểm tra lại kết nối.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.danger),
             ),

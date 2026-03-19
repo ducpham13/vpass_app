@@ -90,7 +90,7 @@ class GymModel {
       bankName: bank['name'] ?? '',
       bankCardNumber: bank['cardNumber'] ?? '',
       bankAccountName: bank['accountName'] ?? owner['name'] ?? '', // Fallback to owner name
-      feeRate: (data['feeRate'] ?? 0.05).toDouble(),
+      feeRate: (data['feeRate'] ?? 0.1).toDouble(),
       status: data['status'] ?? 'pending',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       openTime: contract['openTime'] ?? '06:00',

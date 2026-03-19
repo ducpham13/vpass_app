@@ -664,12 +664,22 @@ final transactionHistoryProvider_Internal =
       return FirebaseFirestore.instance
           .collection('transactions')
           .where('userId', isEqualTo: user.uid)
-          .orderBy('timestamp', descending: true)
           .snapshots()
           .map(
-            (snapshot) => snapshot.docs
-                .map((doc) => {...doc.data(), 'id': doc.id})
-                .toList(),
+            (snapshot) {
+              final list = snapshot.docs
+                  .map((doc) => {...doc.data(), 'id': doc.id})
+                  .toList();
+              // Sort DESC by timestamp
+              list.sort((a, b) {
+                final tsA = a['timestamp'] as Timestamp?;
+                final tsB = b['timestamp'] as Timestamp?;
+                if (tsA == null) return 1;
+                if (tsB == null) return -1;
+                return tsB.compareTo(tsA);
+              });
+              return list;
+            },
           );
     });
 

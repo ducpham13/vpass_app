@@ -86,14 +86,22 @@ class _QrScreenState extends ConsumerState<QrScreen> {
         .collection('checkins')
         .where('userId', isEqualTo: userId)
         .where('cardId', isEqualTo: widget.card.id)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
         .get();
 
     if (snap.docs.isNotEmpty) {
+      // Find latest checkin client-side
+      final docs = [...snap.docs];
+      docs.sort((a, b) {
+        final tsA = a.data()['timestamp'] as Timestamp?;
+        final tsB = b.data()['timestamp'] as Timestamp?;
+        if (tsA == null) return 1;
+        if (tsB == null) return -1;
+        return tsB.compareTo(tsA);
+      });
+      
       // Invalidate card provider so quota/usedValue refreshes immediately
       ref.invalidate(cardProvider);
-      _showSuccessDialog(snap.docs.first.data());
+      _showSuccessDialog(docs.first.data());
     }
   }
 

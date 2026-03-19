@@ -25,27 +25,39 @@ class DepositRepository {
     return _firestore
         .collection('deposit_requests')
         .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snaps) => snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList());
+        .map((snaps) {
+          final list = snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList();
+          // Client-side Sort: timestamp DESC
+          list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return list;
+        });
   }
 
   Stream<List<DepositRequestModel>> getPendingDepositRequests() {
     return _firestore
         .collection('deposit_requests')
         .where('status', isEqualTo: 'pending')
-        .orderBy('timestamp', descending: false)
         .snapshots()
-        .map((snaps) => snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList());
+        .map((snaps) {
+          final list = snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList();
+          // Client-side Sort: timestamp ASC
+          list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          return list;
+        });
   }
 
   Stream<List<DepositRequestModel>> getHistoryDepositRequests() {
     return _firestore
         .collection('deposit_requests')
         .where('status', whereIn: ['approved', 'rejected'])
-        .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snaps) => snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList());
+        .map((snaps) {
+          final list = snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList();
+          // Client-side Sort: timestamp DESC
+          list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return list;
+        });
   }
 
   Future<void> approveDeposit(String requestId, String userId, double amount) async {

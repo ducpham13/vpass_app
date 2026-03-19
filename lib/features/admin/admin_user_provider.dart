@@ -43,27 +43,54 @@ final userTransactionsProvider = StreamProvider.family<List<Map<String, dynamic>
   return FirebaseFirestore.instance
       .collection('transactions')
       .where('userId', isEqualTo: userId)
-      .orderBy('timestamp', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map((doc) => doc.data()).toList());
+      .map((snap) {
+        final list = snap.docs.map((doc) => doc.data()).toList();
+        list.sort((a, b) {
+          final tsA = a['timestamp'] as Timestamp?;
+          final tsB = b['timestamp'] as Timestamp?;
+          if (tsA == null) return 1;
+          if (tsB == null) return -1;
+          return tsB.compareTo(tsA);
+        });
+        return list;
+      });
 });
 
 final userCheckinsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, userId) {
   return FirebaseFirestore.instance
       .collection('checkins')
       .where('userId', isEqualTo: userId)
-      .orderBy('timestamp', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map((doc) => doc.data()).toList());
+      .map((snap) {
+        final list = snap.docs.map((doc) => doc.data()).toList();
+        list.sort((a, b) {
+          final tsA = a['timestamp'] as Timestamp?;
+          final tsB = b['timestamp'] as Timestamp?;
+          if (tsA == null) return 1;
+          if (tsB == null) return -1;
+          return tsB.compareTo(tsA);
+        });
+        return list;
+      });
 });
 
 final partnerRevenueProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, partnerUid) {
   return FirebaseFirestore.instance
       .collection('revenue_logs')
       .where('partnerUid', isEqualTo: partnerUid)
-      .orderBy('timestamp', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map((doc) => doc.data()).toList());
+      .map((snap) {
+        final list = snap.docs.map((doc) => doc.data()).toList();
+        list.sort((a, b) {
+          final tsA = a['timestamp'] as Timestamp?;
+          final tsB = b['timestamp'] as Timestamp?;
+          if (tsA == null) return 1;
+          if (tsB == null) return -1;
+          return tsB.compareTo(tsA);
+        });
+        return list;
+      });
 });
 
 final adminUserActionsProvider = Provider((ref) => AdminUserActions());

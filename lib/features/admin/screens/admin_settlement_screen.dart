@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../shared/glass_container.dart';
-import '../admin_user_provider.dart';
 import '../../partner/partner_earnings_provider.dart';
+import '../../cards/gym_provider.dart';
 import '../../../models/withdrawal_model.dart';
 
 class AdminSettlementScreen extends ConsumerStatefulWidget {
@@ -169,25 +168,30 @@ class _WithdrawalCard extends ConsumerWidget {
             ],
           ),
           const Divider(height: 24, color: Colors.white10),
-          _buildInfoRow('Đối tác (UID)', request.partnerUid),
-          _buildInfoRow('Gym ID', request.gymId),
-          _buildInfoRow('Ngân hàng', request.bankInfo['bank'] ?? 'N/A'),
-          _buildInfoRow('Số tài khoản', request.bankInfo['account'] ?? 'N/A'),
-          _buildInfoRow('Chủ tài khoản', request.bankInfo['name'] ?? 'N/A'),
+          
+          ref.watch(gymDetailProvider(request.gymId)).when(
+            data: (gym) {
+              if (gym == null) return _buildInfoRow('Lỗi', 'Không tìm thấy Gym data');
+              return Column(
+                children: [
+                  _buildInfoRow('Phòng tập', gym.name),
+                  _buildInfoRow('Địa chỉ', '${gym.address}, ${gym.city}'),
+                  _buildInfoRow('Email', gym.partnerEmail),
+                  Divider(height: 16, color: Colors.white.withOpacity(0.05)),
+                  _buildInfoRow('Ngân hàng', gym.bankName),
+                  _buildInfoRow('Số tài khoản', gym.bankCardNumber),
+                  _buildInfoRow('Chủ tài khoản', gym.bankAccountName),
+                ],
+              );
+            },
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => _buildInfoRow('Lỗi tải Gym', e.toString()),
+          ),
+
           if (request.adminNote != null)
             _buildInfoRow('Ghi chú', request.adminNote!),
           
           const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: () => _showBreakdown(context, ref),
-            icon: const Icon(Icons.list_alt, size: 18),
-            label: const Text('XEM LỊCH SỬ MUA THẺ (ĐỐI SOÁT)'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.accentCyan,
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          
           if (!isHistory) ...[
             const SizedBox(height: 16),
             Row(
@@ -211,70 +215,6 @@ class _WithdrawalCard extends ConsumerWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  void _showBreakdown(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.backgroundPrimary,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            Text('LỊCH SỬ MUA THẺ', style: AppTextStyles.labelLarge),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ref.watch(partnerRevenueProvider(request.partnerUid)).when(
-                data: (logs) {
-                  if (logs.isEmpty) {
-                    return const Center(child: Text('Không có dữ liệu giao dịch'));
-                  }
-                  return ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: logs.length,
-                    itemBuilder: (context, index) {
-                      final log = logs[index];
-                      final ts = (log['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
-                      return ListTile(
-                        title: Text(log['gymName'] ?? 'Gym'),
-                        subtitle: Text(DateFormat('HH:mm dd/MM/yyyy').format(ts)),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '+${currencyFormat.format(log['partnerEarned'])}',
-                              style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              'Gốc: ${currencyFormat.format(log['buyPrice'])}',
-                              style: TextStyle(color: AppColors.textMuted, fontSize: 10),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Lỗi: $e')),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -95,4 +95,33 @@ class Validators {
     }
     return null;
   }
+
+  static String? validateTimeFormat(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Giờ không được để trống';
+    }
+    final timeRegex = RegExp(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$');
+    if (!timeRegex.hasMatch(value.trim())) {
+      return 'Định dạng giờ không hợp lệ (HH:mm)';
+    }
+    return null;
+  }
+
+  /// Returns true if time1 is strictly before time2 (strings in HH:mm format)
+  static bool isBefore(String time1, String time2) {
+    try {
+      final parts1 = time1.split(':');
+      final parts2 = time2.split(':');
+      final h1 = int.parse(parts1[0]);
+      final m1 = int.parse(parts1[1]);
+      final h2 = int.parse(parts2[0]);
+      final m2 = int.parse(parts2[1]);
+      
+      if (h1 < h2) return true;
+      if (h1 == h2 && m1 < m2) return true;
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 }

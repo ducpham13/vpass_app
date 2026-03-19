@@ -1,26 +1,88 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'partner_earnings_repository.dart';
 import '../../models/withdrawal_model.dart';
 
 final partnerEarningsRepositoryProvider = Provider((ref) => PartnerEarningsRepository());
 
-final earningsProvider = FutureProvider.family<Map<String, double>, String>((ref, gymId) {
-  // Watch withdrawal stream to trigger refresh when status changes (admin approval)
-  ref.watch(partnerWithdrawalsProvider((gymId, 20)));
-  
-  // Watch revenue logs stream (latest entry only) to trigger refresh on new sales/check-ins
-  ref.watch(revenueLogsUpdateProvider(gymId));
+final allRevenueLogsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, gymId) {
+  return FirebaseFirestore.instance
+      .collection('revenue_logs')
+      .where('gymId', isEqualTo: gymId)
+      .snapshots()
+      .map((snaps) => snaps.docs.map((d) => d.data()).toList());
+});
 
-  return ref.watch(partnerEarningsRepositoryProvider).calculateEarnings(gymId);
+final allWithdrawalsProvider = StreamProvider.family<List<WithdrawalModel>, String>((ref, gymId) {
+  return ref.watch(partnerEarningsRepositoryProvider).getAllWithdrawals(gymId);
+});
+
+final earningsProvider = Provider.family<AsyncValue<Map<String, double>>, String>((ref, gymId) {
+  final logsAsync = ref.watch(allRevenueLogsProvider(gymId));
+  final withdrawalsAsync = ref.watch(allWithdrawalsProvider(gymId));
+
+  if (logsAsync.isLoading || withdrawalsAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+
+  if (logsAsync.hasError) return AsyncValue.error(logsAsync.error!, logsAsync.stackTrace!);
+  if (withdrawalsAsync.hasError) return AsyncValue.error(withdrawalsAsync.error!, withdrawalsAsync.stackTrace!);
+
+  final logs = logsAsync.value ?? [];
+  final withdrawals = withdrawalsAsync.value ?? [];
+
+  double totalRevenue = 0.0;
+  double availableRevenue = 0.0;
+  final now = DateTime.now();
+
+  for (var data in logs) {
+    final rawAmount = data['partnerEarned'];
+    double amount = 0.0;
+    if (rawAmount is num) {
+      amount = rawAmount.toDouble();
+    } else if (rawAmount is String) {
+      amount = double.tryParse(rawAmount) ?? 0.0;
+    }
+    
+    totalRevenue += amount;
+
+    final dynamic tsRaw = data['timestamp'];
+    if (tsRaw is Timestamp) {
+      final logDate = tsRaw.toDate();
+      final unlockDate = logDate.add(const Duration(days: 30));
+      if (now.isAfter(unlockDate) || now.isAtSameMomentAs(unlockDate)) {
+        availableRevenue += amount;
+      }
+    } else if (tsRaw == null) {
+      // If no timestamp yet (optimistic update), assume locked
+    }
+  }
+
+  double paid = 0.0;
+  double pending = 0.0;
+
+  for (var w in withdrawals) {
+    if (w.status == 'paid') {
+      paid += w.amount;
+    } else if (w.status == 'pending') {
+      pending += w.amount;
+    }
+  }
+
+  return AsyncValue.data({
+    'total': totalRevenue,
+    'availableRevenue': availableRevenue,
+    'paid': paid,
+    'pending': pending,
+    'availableToWithdraw': (availableRevenue - paid - pending).clamp(0.0, double.infinity),
+  });
 });
 
 final revenueLogsUpdateProvider = StreamProvider.family<void, String>((ref, gymId) {
   return FirebaseFirestore.instance
       .collection('revenue_logs')
       .where('gymId', isEqualTo: gymId)
-      .orderBy('timestamp', descending: true)
-      .limit(1)
       .snapshots()
       .map((_) => null);
 });

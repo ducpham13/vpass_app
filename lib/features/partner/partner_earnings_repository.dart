@@ -20,40 +20,24 @@ class PartnerEarningsRepository {
       double availableRevenue = 0.0;
       final now = DateTime.now();
 
-      // Collect all card IDs to fetch them in bulk
-      final cardIds = logs.docs
-          .map((doc) => doc.data()['cardId'] as String?)
-          .where((id) => id != null)
-          .cast<String>()
-          .toSet()
-          .toList();
-
-      // Fetch cards in batches of 30 (Firestore limit for whereIn)
-      Map<String, DateTime> cardPurchaseDates = {};
-      for (int i = 0; i < cardIds.length; i += 30) {
-        final batch = cardIds.sublist(i, i + 30 > cardIds.length ? cardIds.length : i + 30);
-        final cardSnaps = await _firestore
-            .collection('cards')
-            .where(FieldPath.documentId, whereIn: batch)
-            .get();
-        for (var doc in cardSnaps.docs) {
-          final purchasedAtTs = doc.data()['purchasedAt'] as Timestamp?;
-          if (purchasedAtTs != null) {
-            cardPurchaseDates[doc.id] = purchasedAtTs.toDate();
-          }
-        }
-      }
-
       for (var doc in logs.docs) {
         final data = doc.data();
-        final amount = (data['partnerEarned'] ?? 0.0).toDouble();
-        final cardId = data['cardId'] as String?;
-
+        final rawAmount = data['partnerEarned'];
+        
+        // Robust numeric conversion
+        double amount = 0.0;
+        if (rawAmount is num) {
+          amount = rawAmount.toDouble();
+        } else if (rawAmount is String) {
+          amount = double.tryParse(rawAmount) ?? 0.0;
+        }
+        
         totalRevenue += amount;
 
-        if (cardId != null && cardPurchaseDates.containsKey(cardId)) {
-          final purchasedAt = cardPurchaseDates[cardId]!;
-          final unlockDate = purchasedAt.add(const Duration(days: 30));
+        final dynamic tsRaw = data['timestamp'];
+        if (tsRaw is Timestamp) {
+          final logDate = tsRaw.toDate();
+          final unlockDate = logDate.add(const Duration(days: 30));
           if (now.isAfter(unlockDate) || now.isAtSameMomentAs(unlockDate)) {
             availableRevenue += amount;
           }
@@ -133,18 +117,32 @@ class PartnerEarningsRepository {
     await docRef.set(withdrawal.toMap());
   }
 
+  /// Get all withdrawals for a gym (no limit) for total calculation
+  Stream<List<WithdrawalModel>> getAllWithdrawals(String gymId) {
+    return _firestore
+        .collection('withdrawals')
+        .where('gymId', isEqualTo: gymId)
+        .snapshots()
+        .map((snaps) => snaps.docs
+            .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
+            .toList());
+  }
+
   /// Get partner withdrawals with pagination
   Stream<List<WithdrawalModel>> getPartnerWithdrawals(String gymId, {int limit = 5}) {
     return _firestore
         .collection('withdrawals')
         .where('gymId', isEqualTo: gymId)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
         .snapshots()
         .map(
-          (snaps) => snaps.docs
-              .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
-              .toList(),
+          (snaps) {
+            final list = snaps.docs
+                .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
+                .toList();
+            // Client-side Sort: timestamp DESC
+            list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+            return list.take(limit).toList();
+          },
         );
   }
 
@@ -153,12 +151,16 @@ class PartnerEarningsRepository {
     return _firestore
         .collection('withdrawals')
         .where('status', isEqualTo: 'pending')
-        .orderBy('timestamp', descending: false)
         .snapshots()
         .map(
-          (snaps) => snaps.docs
-              .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
-              .toList(),
+          (snaps) {
+            final list = snaps.docs
+                .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
+                .toList();
+            // Client-side Sort: timestamp ASC
+            list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            return list;
+          },
         );
   }
 
@@ -166,12 +168,16 @@ class PartnerEarningsRepository {
     return _firestore
         .collection('withdrawals')
         .where('status', whereIn: ['paid', 'rejected'])
-        .orderBy('timestamp', descending: true)
         .snapshots()
         .map(
-          (snaps) => snaps.docs
-              .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
-              .toList(),
+          (snaps) {
+            final list = snaps.docs
+                .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
+                .toList();
+            // Client-side Sort: timestamp DESC
+            list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+            return list;
+          },
         );
   }
 
@@ -192,11 +198,9 @@ class PartnerEarningsRepository {
     return _firestore
         .collection('revenue_logs')
         .where('gymId', isEqualTo: gymId)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final list = snapshot.docs.map((doc) {
             final data = doc.data();
             return {
               ...data,
@@ -204,6 +208,17 @@ class PartnerEarningsRepository {
               'userName': 'Hội viên Vpass', 
             };
           }).toList();
+          
+          // Client-side Sort: timestamp DESC
+          list.sort((a, b) {
+            final tsA = a['timestamp'] as Timestamp?;
+            final tsB = b['timestamp'] as Timestamp?;
+            if (tsA == null) return 1;
+            if (tsB == null) return -1;
+            return tsB.compareTo(tsA);
+          });
+          
+          return list.take(limit).toList();
         });
   }
 

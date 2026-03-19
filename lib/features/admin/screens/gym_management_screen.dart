@@ -5,6 +5,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../models/gym_model.dart';
 import '../../cards/gym_provider.dart';
 import 'gym_form_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class GymManagementScreen extends ConsumerStatefulWidget {
   final String? initialStatus;
@@ -131,6 +132,32 @@ class _GymManagementScreenState extends ConsumerState<GymManagementScreen> {
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(16),
+            leading: gym.imageUrl.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: gym.imageUrl,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 50,
+                      height: 50,
+                      color: Colors.white12,
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(Icons.image_not_supported, size: 30, color: Colors.white24),
+                  ),
+                )
+              : Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.fitness_center, color: Colors.white24),
+                ),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

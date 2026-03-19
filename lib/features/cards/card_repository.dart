@@ -19,6 +19,14 @@ class CardRepository {
         });
   }
 
+  Stream<CardModel?> getCardStream(String cardId) {
+    return _firestore
+        .collection('cards')
+        .doc(cardId)
+        .snapshots()
+        .map((doc) => doc.exists ? CardModel.fromMap(doc.id, doc.data()!) : null);
+  }
+
   Future<void> updateCardStatus(
     String cardId,
     String status, {
