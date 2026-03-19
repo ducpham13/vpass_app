@@ -8,48 +8,96 @@ class PartnerEarningsRepository {
   PartnerEarningsRepository({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Calculate earnings (Total and Available/Unlocked) for a specific gym
+  /// Calculate detailed earnings for a specific gym
   Future<Map<String, double>> calculateEarnings(String gymId) async {
-    final logs = await _firestore
-        .collection('revenue_logs')
-        .where('gymId', isEqualTo: gymId)
-        .get();
+    try {
+      final logs = await _firestore
+          .collection('revenue_logs')
+          .where('gymId', isEqualTo: gymId)
+          .get();
 
-    double total = 0.0;
-    double available = 0.0;
-    final now = DateTime.now();
+      double totalRevenue = 0.0;
+      double availableRevenue = 0.0;
+      final now = DateTime.now();
 
-    for (var doc in logs.docs) {
-      final data = doc.data();
-      final amount = (data['partnerEarned'] ?? 0.0).toDouble();
-      final cardId = data['cardId'] as String?;
+      // Collect all card IDs to fetch them in bulk
+      final cardIds = logs.docs
+          .map((doc) => doc.data()['cardId'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toSet()
+          .toList();
 
-      total += amount;
-
-      // Check unlock status by fetching the associated card
-      if (cardId != null) {
-        final cardDoc = await _firestore.collection('cards').doc(cardId).get();
-        if (cardDoc.exists) {
-          final purchasedAtTs = cardDoc.data()?['purchasedAt'] as Timestamp?;
+      // Fetch cards in batches of 30 (Firestore limit for whereIn)
+      Map<String, DateTime> cardPurchaseDates = {};
+      for (int i = 0; i < cardIds.length; i += 30) {
+        final batch = cardIds.sublist(i, i + 30 > cardIds.length ? cardIds.length : i + 30);
+        final cardSnaps = await _firestore
+            .collection('cards')
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+        for (var doc in cardSnaps.docs) {
+          final purchasedAtTs = doc.data()['purchasedAt'] as Timestamp?;
           if (purchasedAtTs != null) {
-            final purchasedAt = purchasedAtTs.toDate();
-            // Business Rule: Revenue is locked for 30 days from the card's purchase date.
-            final unlockDate = purchasedAt.add(const Duration(days: 30));
-
-            // Only add to 'available' if 30 days have fully passed.
-            if (now.isAfter(unlockDate) || now.isAtSameMomentAs(unlockDate)) {
-              available += amount;
-            }
-            // NOTE: If this log is a 'refund_reversal' (negative amount), it was issued for an Active card.
-            // Active cards are strictly < 30 days old. Therefore, now < unlockDate, meaning 'available'
-            // is NOT modified by the negative log. It only reduces 'total', which perfectly means
-            // the refund strictly subtracts from the 'Pending' balance without touching 'Available'.
+            cardPurchaseDates[doc.id] = purchasedAtTs.toDate();
           }
         }
       }
-    }
 
-    return {'total': total, 'available': available};
+      for (var doc in logs.docs) {
+        final data = doc.data();
+        final amount = (data['partnerEarned'] ?? 0.0).toDouble();
+        final cardId = data['cardId'] as String?;
+
+        totalRevenue += amount;
+
+        if (cardId != null && cardPurchaseDates.containsKey(cardId)) {
+          final purchasedAt = cardPurchaseDates[cardId]!;
+          final unlockDate = purchasedAt.add(const Duration(days: 30));
+          if (now.isAfter(unlockDate) || now.isAtSameMomentAs(unlockDate)) {
+            availableRevenue += amount;
+          }
+        }
+      }
+
+      // Get withdrawal stats
+      final withdrawals = await _firestore
+          .collection('withdrawals')
+          .where('gymId', isEqualTo: gymId)
+          .get();
+
+      double paid = 0.0;
+      double pending = 0.0;
+
+      for (var doc in withdrawals.docs) {
+        final data = doc.data();
+        final amount = (data['amount'] ?? 0.0).toDouble();
+        final status = data['status'] as String?;
+
+        if (status == 'paid') {
+          paid += amount;
+        } else if (status == 'pending') {
+          pending += amount;
+        }
+      }
+
+      return {
+        'total': totalRevenue,
+        'availableRevenue': availableRevenue,
+        'paid': paid,
+        'pending': pending,
+        'availableToWithdraw': (availableRevenue - paid - pending).clamp(0.0, double.infinity),
+      };
+    } catch (e) {
+      print('Error calculating earnings for gym $gymId: $e');
+      return {
+        'total': 0.0,
+        'availableRevenue': 0.0,
+        'paid': 0.0,
+        'pending': 0.0,
+        'availableToWithdraw': 0.0,
+      };
+    }
   }
 
   Future<double> getPaidWithdrawalsTotal(String gymId) async {
@@ -85,11 +133,13 @@ class PartnerEarningsRepository {
     await docRef.set(withdrawal.toMap());
   }
 
-  Stream<List<WithdrawalModel>> getPartnerWithdrawals(String gymId) {
+  /// Get partner withdrawals with pagination
+  Stream<List<WithdrawalModel>> getPartnerWithdrawals(String gymId, {int limit = 5}) {
     return _firestore
         .collection('withdrawals')
         .where('gymId', isEqualTo: gymId)
         .orderBy('timestamp', descending: true)
+        .limit(limit)
         .snapshots()
         .map(
           (snaps) => snaps.docs
@@ -112,6 +162,19 @@ class PartnerEarningsRepository {
         );
   }
 
+  Stream<List<WithdrawalModel>> getHistoryWithdrawals() {
+    return _firestore
+        .collection('withdrawals')
+        .where('status', whereIn: ['paid', 'rejected'])
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map(
+          (snaps) => snaps.docs
+              .map((doc) => WithdrawalModel.fromMap(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
   Future<void> updateWithdrawalStatus(
     String id,
     String status, {
@@ -124,13 +187,13 @@ class PartnerEarningsRepository {
     });
   }
 
-  /// Get detailed earnings logs for a gym (from purchase logs)
-  Stream<List<Map<String, dynamic>>> getEarningsLogs(String gymId) {
+  /// Get detailed earnings logs for a gym with pagination
+  Stream<List<Map<String, dynamic>>> getEarningsLogs(String gymId, {int limit = 5}) {
     return _firestore
         .collection('revenue_logs')
         .where('gymId', isEqualTo: gymId)
         .orderBy('timestamp', descending: true)
-        .limit(50)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
@@ -138,8 +201,7 @@ class PartnerEarningsRepository {
             return {
               ...data,
               'earnedAmount': data['partnerEarned'],
-              'userName':
-                  'Hội viên Vpass', // Hide buyer name for privacy OR fetch if needed
+              'userName': 'Hội viên Vpass', 
             };
           }).toList();
         });

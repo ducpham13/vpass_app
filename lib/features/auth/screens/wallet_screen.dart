@@ -523,6 +523,7 @@ class UnifiedHistoryItem {
   final bool isTopUp;
   final bool isPurchase;
   final bool isRefund;
+  final String? status; // Add status field
 
   UnifiedHistoryItem({
     required this.title,
@@ -537,11 +538,18 @@ class UnifiedHistoryItem {
     this.isTopUp = false,
     this.isPurchase = false,
     this.isRefund = false,
+    this.status,
   });
 
-  String get amountPrefix => (isTopUp || isRefund) ? "+" : "-";
-  Color get amountColor =>
-      (isTopUp || isRefund) ? const Color(0xFF10B981) : Colors.white;
+  String get amountPrefix {
+    if (status == 'rejected') return ""; // No prefix for rejected
+    return (isTopUp || isRefund) ? "+" : "-";
+  }
+
+  Color get amountColor {
+    if (status == 'rejected') return AppColors.danger;
+    return (isTopUp || isRefund) ? const Color(0xFF10B981) : Colors.white;
+  }
 }
 
 final unifiedWalletHistoryProvider =
@@ -584,9 +592,10 @@ final unifiedWalletHistoryProvider =
                 ? AppColors.success
                 : AppColors.danger,
             icon: Icons.credit_card_outlined,
-            iconColor: const Color(0xFF10B981),
-            iconBgColor: const Color(0xFF10B981),
+            iconColor: d.status == 'rejected' ? AppColors.danger : const Color(0xFF10B981),
+            iconBgColor: d.status == 'rejected' ? AppColors.danger : const Color(0xFF10B981),
             isTopUp: true,
+            status: d.status,
           ),
         );
       }

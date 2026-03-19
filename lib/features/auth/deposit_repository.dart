@@ -39,6 +39,15 @@ class DepositRepository {
         .map((snaps) => snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList());
   }
 
+  Stream<List<DepositRequestModel>> getHistoryDepositRequests() {
+    return _firestore
+        .collection('deposit_requests')
+        .where('status', whereIn: ['approved', 'rejected'])
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snaps) => snaps.docs.map((doc) => DepositRequestModel.fromMap(doc.id, doc.data())).toList());
+  }
+
   Future<void> approveDeposit(String requestId, String userId, double amount) async {
     final batch = _firestore.batch();
 

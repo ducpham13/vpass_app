@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../admin/gym_repository.dart';
 import '../../models/gym_model.dart';
 import '../auth/auth_provider.dart';
@@ -12,6 +13,22 @@ final gymsProvider = StreamProvider<List<GymModel>>((ref) {
 
 final allGymsProvider = StreamProvider<List<GymModel>>((ref) {
   return ref.read(gymRepositoryProvider).getAllGyms();
+});
+
+final gymSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final filteredGymsProvider = Provider<AsyncValue<List<GymModel>>>((ref) {
+  final query = ref.watch(gymSearchQueryProvider).toLowerCase();
+  final gymsAsync = ref.watch(allGymsProvider);
+
+  return gymsAsync.whenData((list) {
+    if (query.isEmpty) return list;
+    return list.where((gym) {
+      return gym.name.toLowerCase().contains(query) ||
+          gym.partnerEmail.toLowerCase().contains(query) ||
+          gym.address.toLowerCase().contains(query);
+    }).toList();
+  });
 });
 
 final partnerGymsProvider = StreamProvider<List<GymModel>>((ref) {

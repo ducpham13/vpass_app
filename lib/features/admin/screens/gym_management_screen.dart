@@ -15,6 +15,8 @@ class GymManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _GymManagementScreenState extends ConsumerState<GymManagementScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
   void _navigateToForm([GymModel? gym]) {
     Navigator.push(
       context,
@@ -23,8 +25,14 @@ class _GymManagementScreenState extends ConsumerState<GymManagementScreen> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final gymsAsync = ref.watch(allGymsProvider);
+    final gymsAsync = ref.watch(filteredGymsProvider);
     final initialIndex = _getInitialIndex();
 
     return DefaultTabController(
@@ -40,15 +48,43 @@ class _GymManagementScreenState extends ConsumerState<GymManagementScreen> {
               onPressed: () => _navigateToForm(),
             )
           ],
-          bottom: const TabBar(
-            isScrollable: true,
-            indicatorColor: AppColors.accentBlue,
-            tabs: [
-              Tab(text: 'ALL'),
-              Tab(text: 'ACTIVE'),
-              Tab(text: 'INACTIVE'),
-              Tab(text: 'PENDING'),
-            ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(100),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (v) => ref.read(gymSearchQueryProvider.notifier).state = v,
+                    decoration: InputDecoration(
+                      hintText: 'Tìm theo tên gym hoặc email...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _searchController.text.isNotEmpty 
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () {
+                              _searchController.clear();
+                              ref.read(gymSearchQueryProvider.notifier).state = '';
+                            },
+                          )
+                        : null,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const TabBar(
+                  isScrollable: true,
+                  indicatorColor: AppColors.accentBlue,
+                  tabs: [
+                    Tab(text: 'TẤT CẢ'),
+                    Tab(text: 'ACTIVE'),
+                    Tab(text: 'INACTIVE'),
+                    Tab(text: 'PENDING'),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         body: gymsAsync.when(
@@ -63,7 +99,7 @@ class _GymManagementScreenState extends ConsumerState<GymManagementScreen> {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('L?i: $err')),
+          error: (err, stack) => Center(child: Text('Lỗi: $err')),
         ),
       ),
     );
@@ -78,7 +114,7 @@ class _GymManagementScreenState extends ConsumerState<GymManagementScreen> {
 
   Widget _buildGymList(List<GymModel> gyms) {
     if (gyms.isEmpty) {
-      return const Center(child: Text("No gym partners found in this category"));
+      return const Center(child: Text("Không tìm thấy phòng tập nào."));
     }
 
     return ListView.builder(

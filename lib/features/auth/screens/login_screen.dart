@@ -7,6 +7,7 @@ import '../../../shared/galaxy_button.dart';
 import '../auth_provider.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../../core/utils/seed_utils.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -181,36 +182,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 32),
                 TextButton(
                   onPressed: () async {
-                    final repo = ref.read(authRepositoryProvider);
-                    int successCount = 0;
-                    
-                    Future<void> createUser(String email, String role, String name) async {
-                      try {
-                        await repo.signUpWithEmailAndPassword(
-                          email: email,
-                          password: '111111',
-                          name: name,
-                          phone: '0901111111',
-                          role: role,
-                        );
-                        successCount++;
-                      } catch (e) {
-                         print('Seed error for $email: $e');
-                      }
+                    _showSnackBar('Đang tạo dữ liệu test (cus2, cus3, gym1, gym2)...', isError: false);
+                    try {
+                      await SeedUtils.seedTestData();
+                      _showSnackBar('Hoàn tất! Hệ thống đã tự động logout. Hãy đăng nhập với mật khẩu 111111.', isError: false);
+                    } catch (e) {
+                      _showSnackBar('Lỗi khi seed: $e', isError: true);
                     }
-
-                    _showSnackBar('Đang tạo tài khoản test...', isError: false);
-                    await createUser('admin@gmail.com', 'super_admin', 'Admin Test');
-                    await createUser('cus@gmail.com', 'customer', 'Customer Test');
-                    await createUser('gym@gmail.com', 'gym_partner', 'Gym Partner Test');
-                    
-                    // Logout because Firebase auto logs in the last created user
-                    await repo.signOut();
-                    
-                    _showSnackBar('Hoàn tất! Cần đăng nhập thủ công lại. Đã tạo mới: $successCount/3 (các tài khoản đã tồn tại sẽ bị bỏ qua).', isError: false);
                   },
                   child: const Text(
-                    '🛠 BẤM VÀO ĐÂY ĐỂ TẠO 3 TÀI KHOẢN TEST (ADMIN, CUS, GYM)',
+                    '🛠 BẤM VÀO ĐÂY ĐỂ SEED DỮ LIỆU TEST (CUS2, CUS3, GYM1, GYM2)',
                     style: TextStyle(color: Colors.white38, fontSize: 10),
                   ),
                 ),

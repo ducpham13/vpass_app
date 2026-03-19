@@ -36,6 +36,11 @@ class CardModel {
   });
 
   factory CardModel.fromMap(String id, Map<String, dynamic> data) {
+    // Safely cast Timestamps, defaulting to null if not present or not a Timestamp
+    final Timestamp? startTs = data['startDate'] is Timestamp ? data['startDate'] as Timestamp : null;
+    final Timestamp? endTs = data['endDate'] is Timestamp ? data['endDate'] as Timestamp : null;
+    final Timestamp? purchasedTs = data['purchasedAt'] is Timestamp ? data['purchasedAt'] as Timestamp : null;
+
     return CardModel(
       id: id,
       userId: data['userId'] ?? '',
@@ -47,9 +52,9 @@ class CardModel {
       priceSnapshot: (data['priceSnapshot'] ?? 0).toDouble(),
       membershipPrice: data['membershipPrice'] != null ? (data['membershipPrice']).toDouble() : null,
       usedValue: (data['usedValue'] ?? 0).toDouble(),
-      startDate: (data['startDate'] as Timestamp).toDate(),
-      endDate: (data['endDate'] as Timestamp).toDate(),
-      purchasedAt: (data['purchasedAt'] as Timestamp).toDate(),
+      startDate: startTs?.toDate() ?? DateTime.now(),
+      endDate: endTs?.toDate() ?? DateTime.now().add(const Duration(days: 30)),
+      purchasedAt: purchasedTs?.toDate() ?? DateTime.now(),
       expiryReason: data['expiryReason'],
       inactivatedAt: data['inactivatedAt'] != null ? (data['inactivatedAt'] as Timestamp).toDate() : null,
     );

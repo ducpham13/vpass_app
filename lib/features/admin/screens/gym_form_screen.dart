@@ -5,6 +5,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../models/gym_model.dart';
 import '../../auth/auth_provider.dart';
 import '../../cards/gym_provider.dart';
+import '../../../core/utils/validators.dart';
 
 class GymFormScreen extends ConsumerStatefulWidget {
   final GymModel? gym;
@@ -43,6 +44,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
   bool _isClosedOverride = false;
   int _colorIndex = 1;
   late TextEditingController _rejectionReasonController;
+  late TextEditingController _imageUrlController;
 
   @override
   void initState() {
@@ -86,6 +88,9 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
     _rejectionReasonController = TextEditingController(
       text: widget.gym?.rejectionReason ?? '',
     );
+    _imageUrlController = TextEditingController(
+      text: widget.gym?.imageUrl ?? '',
+    );
     _status = widget.gym?.status ?? 'pending';
     _crowdLevel = widget.gym?.crowdLevel ?? 'average';
     _isClosedOverride = widget.gym?.isClosedOverride ?? false;
@@ -108,6 +113,8 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
     _openTimeController.dispose();
     _closeTimeController.dispose();
     _emergencyNoticeController.dispose();
+    _rejectionReasonController.dispose();
+    _imageUrlController.dispose();
     super.dispose();
   }
 
@@ -125,7 +132,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
       address: _addressController.text,
       city: _cityController.text,
       description: _descriptionController.text,
-      imageUrl: widget.gym?.imageUrl ?? '',
+      imageUrl: _imageUrlController.text,
       pricePerMonth: double.tryParse(_priceController.text) ?? 0,
       ownerUid: widget.gym?.ownerUid ?? currentUser.uid,
       ownerName: isAdmin
@@ -176,6 +183,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(authProvider).user;
     final isAdmin = currentUser?.isSuperAdmin ?? false;
+    final isOwner = currentUser?.uid == widget.gym?.ownerUid;
     final isEdit = widget.gym != null;
 
     return Scaffold(
@@ -206,14 +214,14 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
               if (!widget.editOpsOnly) ...[
                 _buildSectionHeader('THÔNG TIN HỢP ĐỒNG', Icons.description),
                 const SizedBox(height: 16),
-                _buildContractSection(isAdmin),
+                _buildContractSection(isAdmin, isOwner),
                 const SizedBox(height: 32),
               ],
               if (isAdmin && !widget.editOpsOnly && !widget.isReadOnly) ...[
                 _buildAdminOnlyFields(isEdit, isAdmin),
                 const SizedBox(height: 32),
               ],
-              if (!widget.isReadOnly)
+              if (!widget.isReadOnly || (isOwner && !widget.editOpsOnly))
                 ElevatedButton(
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
@@ -325,7 +333,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
     );
   }
 
-  Widget _buildContractSection(bool isAdmin) {
+  Widget _buildContractSection(bool isAdmin, bool isOwner) {
     final isEdit = widget.gym != null;
     final canEdit =
         !widget.isReadOnly &&
@@ -351,7 +359,58 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
           controller: _cityController,
           enabled: canEdit,
           decoration: const InputDecoration(labelText: 'Thành phố'),
-          validator: (v) => v?.isEmpty ?? true ? 'Bắt buộc' : null,
+          validator: (v) => Validators.validateNotEmpty(v, 'Thành phố'),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _descriptionController,
+          enabled: canEdit,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Mô tả phòng tập (Không bắt buộc)',
+            hintText: 'VD: Phòng tập hiện đại với đầy đủ thiết bị...',
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _imageUrlController,
+          enabled: canEdit,
+          decoration: const InputDecoration(
+            labelText: 'Ảnh phòng tập (URL - Không bắt buộc)',
+            hintText: 'https://example.com/image.jpg',
+          ),
+          validator: (v) => (v == null || v.isEmpty) ? null : Validators.validateUrl(v, 'Ảnh'),
+        ),
+        const SizedBox(height: 24),
+        const Divider(color: Colors.white10),
+        const SizedBox(height: 24),
+        _buildSectionHeader('THÔNG TIN THANH TOÁN', Icons.account_balance),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _bankNameController,
+          enabled: canEdit || isOwner,
+          decoration: const InputDecoration(labelText: 'Tên ngân hàng'),
+          validator: (v) => Validators.validateNotEmpty(v, 'Tên ngân hàng'),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _bankCardNumberController,
+          enabled: canEdit || isOwner,
+          decoration: const InputDecoration(
+            labelText: 'Số tài khoản ngân hàng',
+          ),
+          keyboardType: TextInputType.number,
+          validator: (v) => Validators.validateNumber(v, 'Số tài khoản'),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _bankAccountNameController,
+          enabled: canEdit || isOwner,
+          decoration: const InputDecoration(
+            labelText: 'Tên chủ tài khoản',
+          ),
+          textCapitalization: TextCapitalization.characters,
+          validator: (v) => Validators.validateNotEmpty(v, 'Tên chủ tài khoản'),
         ),
         const SizedBox(height: 24),
         if (isAdmin || widget.gym == null) ...[
@@ -402,6 +461,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                   labelText: 'Giờ mở cửa',
                   hintText: '06:00',
                 ),
+                validator: (v) => Validators.validateNotEmpty(v, 'Giờ mở cửa'),
               ),
             ),
             const SizedBox(width: 16),
@@ -413,34 +473,10 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                   labelText: 'Giờ đóng cửa',
                   hintText: '22:00',
                 ),
+                validator: (v) => Validators.validateNotEmpty(v, 'Giờ đóng cửa'),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 24),
-        const SizedBox(height: 24),
-        TextFormField(
-          controller: _bankNameController,
-          enabled: canEdit,
-          decoration: const InputDecoration(labelText: 'Tên ngân hàng'),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _bankCardNumberController,
-          enabled: canEdit,
-          decoration: const InputDecoration(
-            labelText: 'Số tài khoản ngân hàng',
-          ),
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _bankAccountNameController,
-          enabled: canEdit,
-          decoration: const InputDecoration(
-            labelText: 'Tên chủ tài khoản',
-          ),
-          textCapitalization: TextCapitalization.characters,
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -448,7 +484,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
           enabled: canEdit,
           decoration: const InputDecoration(labelText: 'Giá gói tháng (VND)'),
           keyboardType: TextInputType.number,
-          validator: (v) => v?.isEmpty ?? true ? 'Bắt buộc' : null,
+          validator: (v) => Validators.validatePrice(v, 'Giá gói tháng'),
         ),
       ],
     );
@@ -473,12 +509,14 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                 controller: _partnerEmailController,
                 enabled: !isEdit,
                 decoration: const InputDecoration(labelText: 'Email đối tác'),
+                validator: (v) => Validators.validateEmail(v),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ownerNameController,
                 enabled: !isEdit,
                 decoration: const InputDecoration(labelText: 'Tên chủ sở hữu'),
+                validator: (v) => Validators.validateNotEmpty(v, 'Tên chủ sở hữu'),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -495,6 +533,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                       : null,
                 ),
                 keyboardType: TextInputType.number,
+                validator: (v) => Validators.validateNumber(v, 'Tỷ lệ phí'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -513,7 +552,7 @@ class _GymFormScreenState extends ConsumerState<GymFormScreen> {
                 ],
                 onChanged: (v) => setState(() => _status = v!),
               ),
-              if (_status == 'rejected') ...[
+              if (_status == 'rejected' || _status == 'inactive') ...[
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _rejectionReasonController,

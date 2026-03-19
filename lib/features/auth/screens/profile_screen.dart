@@ -9,6 +9,7 @@ import '../../../shared/widgets/user_avatar.dart';
 import '../../../shared/galaxy_button.dart';
 import '../auth_provider.dart';
 import '../auth_utils.dart';
+import '../../../core/utils/validators.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -59,10 +60,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _handleUpdateProfile() async {
-    if (_nameController.text.trim().isEmpty) {
-      _showSnackBar('Họ tên không được để trống', isError: true);
+    final nameError = Validators.validateName(_nameController.text.trim());
+    if (nameError != null) {
+      _showSnackBar(nameError, isError: true);
       return;
     }
+
+    final phoneError = Validators.validatePhone(_phoneController.text.trim());
+    if (phoneError != null) {
+      _showSnackBar(phoneError, isError: true);
+      return;
+    }
+
     try {
       await ref.read(authProvider.notifier).updateProfile(
             name: _nameController.text.trim(),
@@ -76,10 +85,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _handleChangePassword() async {
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showSnackBar('Mật khẩu xác nhận không khớp', isError: true);
+    final currentPassError = Validators.validateNotEmpty(_currentPasswordController.text, 'Mật khẩu hiện tại');
+    if (currentPassError != null) {
+      _showSnackBar(currentPassError, isError: true);
       return;
     }
+
+    final newPassError = Validators.validatePassword(_newPasswordController.text);
+    if (newPassError != null) {
+      _showSnackBar(newPassError, isError: true);
+      return;
+    }
+
+    final confirmPassError = Validators.validateConfirmPassword(
+      _confirmPasswordController.text,
+      _newPasswordController.text,
+    );
+    if (confirmPassError != null) {
+      _showSnackBar(confirmPassError, isError: true);
+      return;
+    }
+
     try {
       await ref.read(authRepositoryProvider).reauthenticate(_currentPasswordController.text);
       await ref.read(authProvider.notifier).changePassword(_newPasswordController.text);

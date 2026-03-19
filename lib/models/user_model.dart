@@ -24,16 +24,16 @@ class UserModel {
   });
 
   factory UserModel.fromMap(String uid, Map<String, dynamic> data) {
-    final profile = data['profile'] as Map<String, dynamic>? ?? {};
-    final wallet = data['wallet'] as Map<String, dynamic>? ?? {};
+    final profile = data['profile'] is Map ? Map<String, dynamic>.from(data['profile'] as Map) : {};
+    final wallet = data['wallet'] is Map ? Map<String, dynamic>.from(data['wallet'] as Map) : {};
 
     return UserModel(
       uid: uid,
-      name: profile['name'] ?? '',
-      phone: profile['phone'] ?? '',
-      email: profile['email'] ?? '',
-      avatar: profile['avatar'] ?? '',
-      balance: (wallet['balance'] ?? 0).toDouble(),
+      name: profile['name'] ?? data['name'] ?? '',
+      phone: profile['phone'] ?? data['phone'] ?? '',
+      email: profile['email'] ?? data['email'] ?? '',
+      avatar: profile['avatar'] ?? data['avatar'] ?? '',
+      balance: (wallet['balance'] ?? data['balance'] ?? 0).toDouble(),
       role: data['role'] ?? 'customer',
       fcmToken: data['fcmToken'],
       gymId: data['gymId'],

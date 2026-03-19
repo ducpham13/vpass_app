@@ -6,6 +6,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../shared/galaxy_button.dart';
 import '../auth_provider.dart';
 import '../auth_utils.dart';
+import '../../../core/utils/validators.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -26,11 +27,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   String? _validate() {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) return 'Please enter your email';
-    final emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-z]{2,}$');
-    if (!emailRegex.hasMatch(email)) return 'Invalid email address';
-    return null;
+    return Validators.validateEmail(_emailController.text.trim());
   }
 
   Future<void> _handleReset() async {
@@ -53,9 +50,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppColors.backgroundSurface,
-            title: const Text('Reset Link Sent'),
+            title: const Text('Đã gửi liên kết'),
             content: const Text(
-              'If an account exists for this email, you will receive a password reset link shortly.',
+              'Nếu email này tồn tại trong hệ thống, bạn sẽ nhận được liên kết đặt lại mật khẩu trong giây lát.',
             ),
             actions: [
               TextButton(
@@ -63,7 +60,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   Navigator.pop(context);
                   Navigator.pop(context);
                 },
-                child: const Text('Back to Login'),
+                child: const Text('Quay lại Đăng nhập'),
               ),
             ],
           ),

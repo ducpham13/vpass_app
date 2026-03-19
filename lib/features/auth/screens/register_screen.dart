@@ -6,6 +6,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../shared/galaxy_button.dart';
 import '../auth_provider.dart';
 import '../auth_utils.dart';
+import '../../../core/utils/validators.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -43,24 +44,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final pass = _passwordController.text;
     final confirm = _confirmController.text;
 
-    if (name.isEmpty) return 'Name cannot be empty';
-    if (name.length < 2) return 'Name must be at least 2 characters';
+    final nameError = Validators.validateName(name);
+    if (nameError != null) return nameError;
 
-    if (email.isEmpty) return 'Email cannot be empty';
-    final emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-z]{2,}$');
-    if (!emailRegex.hasMatch(email)) return 'Invalid email address';
+    final emailError = Validators.validateEmail(email);
+    if (emailError != null) return emailError;
 
-    if (phone.isEmpty) return 'Phone cannot be empty';
-    final phoneRegex = RegExp(r'^(0|\+84)[0-9]{9}$');
-    if (!phoneRegex.hasMatch(phone)) {
-      return 'Invalid Vietnamese phone number (e.g. 0901234567)';
-    }
+    final phoneError = Validators.validatePhone(phone);
+    if (phoneError != null) return phoneError;
 
-    if (pass.isEmpty) return 'Password cannot be empty';
-    if (pass.length < 6) return 'Password must be at least 6 characters';
+    final passError = Validators.validatePassword(pass);
+    if (passError != null) return passError;
 
-    if (confirm.isEmpty) return 'Please confirm your password';
-    if (confirm != pass) return 'Passwords do not match';
+    final confirmError = Validators.validateConfirmPassword(confirm, pass);
+    if (confirmError != null) return confirmError;
 
     return null;
   }

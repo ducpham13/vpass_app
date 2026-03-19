@@ -173,7 +173,7 @@ class PartnerDashboardScreen extends ConsumerWidget {
                                   ),
                                   Text(
                                     NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                                        .format(stats['available'] ?? 0),
+                                        .format(stats['availableToWithdraw'] ?? 0),
                                     style: AppTextStyles.bodySmall.copyWith(
                                       color: AppColors.accentCyan,
                                       fontWeight: FontWeight.bold,
@@ -207,7 +207,7 @@ class PartnerDashboardScreen extends ConsumerWidget {
                             ),
                           ),
                           child: Text(
-                            gym.status == 'pending' ? 'ĐANG CHỜ DUYỆT' : (gym.status == 'active' ? 'ĐANG HOẠT ĐỘNG' : 'NGỪNG HOẠT ĐỘNG'),
+                            gym.status == 'pending' ? 'ĐANG CHỜ DUYỆT' : (gym.status == 'active' ? 'ĐANG HOẠT ĐỘNG' : (gym.rejectionReason != null ? 'BỊ TỪ CHỐI' : 'NGỪNG HOẠT ĐỘNG')),
                             style: AppTextStyles.bodySmall.copyWith(
                               color: isInactive 
                                   ? AppColors.textMuted 
@@ -218,7 +218,7 @@ class PartnerDashboardScreen extends ConsumerWidget {
                           ),
                         ),
 
-                      if (gym.status == 'rejected' && gym.rejectionReason != null)
+                      if ((gym.status == 'rejected' || gym.status == 'inactive') && gym.rejectionReason != null)
                          Padding(
                            padding: const EdgeInsets.only(top: 8, bottom: 16),
                            child: Text(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -10,7 +11,7 @@ import '../../cards/gym_provider.dart';
 import '../partner_earnings_provider.dart';
 import '../../../models/gym_model.dart';
 
-class PartnerEarningsScreen extends ConsumerWidget {
+class PartnerEarningsScreen extends ConsumerStatefulWidget {
   final String gymId;
   final String gymName;
 
@@ -21,35 +22,49 @@ class PartnerEarningsScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final earningsAsync = ref.watch(earningsProvider(gymId));
-    final paidAsync = ref.watch(paidWithdrawalsTotalProvider(gymId));
-    final logsAsync = ref.watch(earningsLogsProvider(gymId));
-    final gymAsync = ref.watch(gymDetailProvider(gymId));
-    final withdrawalsAsync = ref.watch(partnerWithdrawalsProvider(gymId));
+  ConsumerState<PartnerEarningsScreen> createState() => _PartnerEarningsScreenState();
+}
+
+class _PartnerEarningsScreenState extends ConsumerState<PartnerEarningsScreen> {
+  int _logsLimit = 5;
+  int _withdrawalsLimit = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final earningsAsync = ref.watch(earningsProvider(widget.gymId));
+    final logsAsync = ref.watch(earningsLogsProvider((widget.gymId, _logsLimit)));
+    final gymAsync = ref.watch(gymDetailProvider(widget.gymId));
+    final withdrawalsAsync = ref.watch(partnerWithdrawalsProvider((widget.gymId, _withdrawalsLimit)));
+    
     final currencyFormat = NumberFormat.currency(
       locale: 'vi_VN',
       symbol: 'đ',
       decimalDigits: 0,
     );
 
-    final earningsMap = earningsAsync.value ?? {'total': 0.0, 'available': 0.0};
-    final total = earningsMap['total'] ?? 0.0;
-    final available = earningsMap['available'] ?? 0.0;
+    final stats = earningsAsync.value ?? {
+      'total': 0.0,
+      'availableRevenue': 0.0,
+      'paid': 0.0,
+      'pending': 0.0,
+      'availableToWithdraw': 0.0,
+    };
 
-    final paid = paidAsync.value ?? 0.0;
-    final withdrawable = (available - paid).clamp(0.0, double.infinity);
-    final pending = (total - available).clamp(0.0, double.infinity);
+    final totalEarned = stats['total'] ?? 0.0;
+    final locked = (totalEarned - (stats['availableRevenue'] ?? 0.0)).clamp(0.0, double.infinity);
+    final paid = stats['paid'] ?? 0.0;
+    final pendingWithdrawal = stats['pending'] ?? 0.0;
+    final availableToWithdraw = stats['availableToWithdraw'] ?? 0.0;
 
     final gym = gymAsync.value;
 
     return Scaffold(
-      appBar: AppBar(title: Text('THU NHẬP - $gymName')),
+      appBar: AppBar(title: Text('THU NHẬP - ${widget.gymName}')),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(earningsProvider(gymId));
-          ref.invalidate(paidWithdrawalsTotalProvider(gymId));
-          ref.invalidate(earningsLogsProvider(gymId));
+          ref.invalidate(earningsProvider(widget.gymId));
+          ref.invalidate(earningsLogsProvider((widget.gymId, _logsLimit)));
+          ref.invalidate(partnerWithdrawalsProvider((widget.gymId, _withdrawalsLimit)));
           return Future.delayed(const Duration(milliseconds: 500));
         },
         child: CustomScrollView(
@@ -61,7 +76,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     _buildBalanceCard(
-                      withdrawable,
+                      availableToWithdraw,
                       currencyFormat,
                       context,
                       ref,
@@ -69,11 +84,11 @@ class PartnerEarningsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _buildStatsRow(
-                      total,
+                      totalEarned,
                       paid,
-                      pending,
+                      locked,
+                      pendingWithdrawal,
                       currencyFormat,
-                      gym?.feeRate,
                     ),
                   ],
                 ),
@@ -115,8 +130,21 @@ class PartnerEarningsScreen extends ConsumerWidget {
                 }
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index == logs.length) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _logsLimit += 5),
+                            child: const Text('XEM THÊM DOANH THU'),
+                          ),
+                        ),
+                      );
+                    }
+                    
                     final log = logs[index];
-                    final time = (log['timestamp'] as dynamic).toDate();
+                    final Timestamp? ts = log['timestamp'] as Timestamp?;
+                    final time = ts?.toDate() ?? DateTime.now();
                     final now = DateTime.now();
                     final timeStr = now.year == time.year
                         ? DateFormat('HH:mm - dd/MM').format(time)
@@ -198,14 +226,14 @@ class PartnerEarningsScreen extends ConsumerWidget {
                         ],
                       ),
                     );
-                  }, childCount: logs.length),
+                  }, childCount: logs.length + (logs.length >= _logsLimit ? 1 : 0)),
                 );
               },
-              loading: () => const SliverFillRemaining(
+              loading: () => const SliverToBoxAdapter(
                 child: Center(child: CircularProgressIndicator()),
               ),
               error: (err, _) =>
-                  SliverFillRemaining(child: Center(child: Text('Lỗi: $err'))),
+                  SliverToBoxAdapter(child: Center(child: Text('Lỗi: $err'))),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -245,6 +273,18 @@ class PartnerEarningsScreen extends ConsumerWidget {
                 }
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index == withdrawals.length) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _withdrawalsLimit += 5),
+                            child: const Text('XEM THÊM LỊCH SỬ RÚT TIỀN'),
+                          ),
+                        ),
+                      );
+                    }
+
                     final withdrawal = withdrawals[index];
                     final time = withdrawal.timestamp;
                     final now = DateTime.now();
@@ -340,7 +380,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
                         ],
                       ),
                     );
-                  }, childCount: withdrawals.length),
+                  }, childCount: withdrawals.length + (withdrawals.length >= _withdrawalsLimit ? 1 : 0)),
                 );
               },
               loading: () => const SliverToBoxAdapter(
@@ -358,7 +398,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
   }
 
   Widget _buildBalanceCard(
-    double available,
+    double withdrawable,
     NumberFormat format,
     BuildContext context,
     WidgetRef ref,
@@ -369,7 +409,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
       child: Column(
         children: [
           const Text(
-            'SỐ DƯ KHẢ DỤNG',
+            'SỐ TIỀN CÓ THỂ RÚT',
             style: TextStyle(
               letterSpacing: 2,
               fontSize: 13,
@@ -378,7 +418,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            format.format(available),
+            format.format(withdrawable),
             style: AppTextStyles.displayLarge.copyWith(
               color: AppColors.accentCyan,
             ),
@@ -387,9 +427,9 @@ class PartnerEarningsScreen extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: (available < 50000 || gym == null)
+              onPressed: (withdrawable < 50000 || gym == null)
                   ? null
-                  : () => _showWithdrawDialog(context, ref, available, gym),
+                  : () => _showWithdrawDialog(context, ref, withdrawable, gym),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accentCyan,
                 foregroundColor: Colors.black,
@@ -404,7 +444,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          if (available < 50000)
+          if (withdrawable < 50000)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
@@ -420,35 +460,56 @@ class PartnerEarningsScreen extends ConsumerWidget {
   }
 
   Widget _buildStatsRow(
-    double total,
+    double totalEarned,
     double paid,
-    double pending,
+    double locked,
+    double pendingWithdrawal,
     NumberFormat format,
-    double? feeRate,
   ) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildStatItem(
-            'Tổng tích lũy',
-            format.format(total),
-            Icons.account_balance_wallet,
-            subtitle: feeRate != null
-                ? 'Phí nền tảng: ${(feeRate * 100).toInt()}%'
-                : null,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                'Tổng thu nhập',
+                format.format(totalEarned),
+                Icons.account_balance_wallet,
+                subtitle: 'Toàn bộ tiền kiếm được từ trước tới nay',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _buildStatItem(
+                'Đã rút',
+                format.format(paid),
+                Icons.outbox,
+                subtitle: 'Tiền đã được chuyển về ngân hàng',
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _buildStatItem(
-            'Đang khóa (30 ngày)',
-            format.format(pending),
-            Icons.lock_outline,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _buildStatItem('Đã rút', format.format(paid), Icons.outbox),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                'Đang khóa (30 ngày)',
+                format.format(locked),
+                Icons.lock_outline,
+                subtitle: 'Doanh thu mới chưa đủ 30 ngày để rút',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _buildStatItem(
+                'Đang chờ duyệt',
+                format.format(pendingWithdrawal),
+                Icons.hourglass_empty,
+                subtitle: 'Yêu cầu rút tiền đang chờ Admin xử lý',
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -461,34 +522,42 @@ class PartnerEarningsScreen extends ConsumerWidget {
     String? subtitle,
   }) {
     return GlassContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppColors.textMuted),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 10,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: AppColors.textMuted),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          if (subtitle != null)
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
-            ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           FittedBox(
             child: Text(
               value,
               style: AppTextStyles.bodyLarge.copyWith(
                 fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
           ),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                subtitle,
+                style: const TextStyle(fontSize: 9, color: AppColors.textMuted, height: 1.2),
+              ),
+            ),
         ],
       ),
     );
@@ -544,7 +613,8 @@ class PartnerEarningsScreen extends ConsumerWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  final amount = double.tryParse(amountController.text) ?? 0;
+                  final amountText = amountController.text;
+                  final amount = double.tryParse(amountText) ?? 0;
                   if (amount < 50000 || amount > maxAmount) return;
 
                   final user = ref.read(authProvider).user;
@@ -553,7 +623,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
                   try {
                     await ref
                         .read(partnerEarningsRepositoryProvider)
-                        .requestWithdrawal(user.uid, gymId, amount, {
+                        .requestWithdrawal(user.uid, widget.gymId, amount, {
                           'bank': gym.bankName,
                           'account': gym.bankCardNumber,
                           'name': gym.bankAccountName,
@@ -561,7 +631,7 @@ class PartnerEarningsScreen extends ConsumerWidget {
 
                     if (context.mounted) {
                       Navigator.pop(context);
-                      ref.invalidate(paidWithdrawalsTotalProvider(gymId));
+                      ref.invalidate(earningsProvider(widget.gymId));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Gửi yêu cầu thành công!'),
