@@ -72,136 +72,196 @@ class TestSeedUtils {
     final List<String> gymEmails = ['gym1@gmail.com', 'gym2@gmail.com', 'gym3@gmail.com'];
 
     final Map<String, String> userUids = {};
-    final List<String> gymIds = [];
-    final Map<String, String> gymToOwner = {};
-
     for (final email in [...customerEmails, ...gymEmails]) {
-      final snap = await firestore.collection('users').where('profile.email', isEqualTo: email).get(const GetOptions(source: Source.server));
+      final snap = await firestore.collection('users').where('profile.email', isEqualTo: email).get();
       if (snap.docs.isNotEmpty) {
         userUids[email] = snap.docs.first.id;
       }
     }
 
-    if (userUids.isEmpty) {
-      throw 'Không tìm thấy tài khoản test nào trong Firestore. Vui lòng chạy lại Seed 1.';
+    if (userUids.length < 6) {
+      throw 'Không đủ 6 tài khoản test (3 cus, 3 gym). Vui lòng chạy Seed 1 trước.';
     }
+
+    // 1. Create 3 Gyms for each Partner
+    final Map<String, List<String>> partnerGyms = {};
+    final Map<String, double> gymPrices = {};
 
     for (int i = 0; i < gymEmails.length; i++) {
       final email = gymEmails[i];
-      final uid = userUids[email];
-      if (uid == null) continue;
+      final uid = userUids[email]!;
+      final List<String> gymsForThisPartner = [];
+      
+      final cities = ['Hà Nội', 'Đà Nẵng', 'TP. Hồ Chí Minh'];
+      final city = cities[i];
 
-      final gymSnap = await firestore.collection('gyms').where('owner.uid', isEqualTo: uid).get();
-      String gymId;
-      if (gymSnap.docs.isEmpty) {
-        gymId = firestore.collection('gyms').doc().id;
-        final gym = {
+      for (int j = 1; j <= 3; j++) {
+        final gymNum = (i + 1) * 100 + j; // 101, 102, 103, 201...
+        final gymId = 'gym_$gymNum';
+        final price = 600000.0 + (j * 100000.0); // 700k, 800k, 900k
+        
+        await firestore.collection('gyms').doc(gymId).set({
           'info': {
-            'name': 'Gym Seed ${i + 1}',
-            'address': 'Address Seed ${i + 1}',
-            'city': 'Hanoi',
-            'imageUrl': 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=400',
-            'colorIndex': i % 5,
+            'name': 'Gym $gymNum',
+            'address': '${j * 12} Đường số $j, Quận ${i + 1}',
+            'city': city,
+            'imageUrl': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400',
+            'colorIndex': (i + j) % 5,
           },
-          'pricing': {'pricePerMonth': 600000.0},
-          'owner': {'uid': uid, 'name': 'Gym Partner ${i + 1}', 'email': email},
-          'bank': {'name': 'VPBank', 'cardNumber': '123456789', 'accountName': 'PARTNER ${i + 1}'},
+          'pricing': {'pricePerMonth': price},
+          'owner': {'uid': uid, 'name': 'Chủ Gym ${i + 1}', 'email': email},
+          'bank': {'name': 'VPBank', 'cardNumber': '999$gymNum', 'accountName': 'DOI TAC $gymNum'},
           'status': 'active',
           'feeRate': 0.1,
-          'createdAt': FieldValue.serverTimestamp(),
-          'contract': {'openTime': '06:00', 'closeTime': '22:00'},
+          'createdAt': Timestamp.fromDate(DateTime(2025, 8, 15)),
+          'contract': {'openTime': '05:30', 'closeTime': '22:30'},
           'operational': {'crowdLevel': 'average', 'isClosedOverride': false},
-        };
-        await firestore.collection('gyms').doc(gymId).set(gym);
-      } else {
-        gymId = gymSnap.docs.first.id;
+        });
+        gymsForThisPartner.add(gymId);
+        gymPrices[gymId] = price;
       }
-      gymIds.add(gymId);
-      gymToOwner[gymId] = uid;
+      partnerGyms[uid] = gymsForThisPartner;
     }
 
-    if (gymIds.isEmpty) throw 'Lỗi: Không có phòng tập nào. Chạy Seed 1 trước.';
+    // 2. Clear previous history for these users to avoid confusion
+    // (We'll skip this to keep it simple, or user can run Seed 3)
 
-    final List<String> cardIds = [];
+    // 3. Generate Historical Data from Sep 2025 to Mar 2026
+    final startMonth = DateTime(2025, 9, 1);
+    final now = DateTime.now();
+    
+    // Initial Deposits (15M each)
     for (final email in customerEmails) {
-      final uid = userUids[email];
-      if (uid == null) continue;
-      final cardSnap = await firestore.collection('cards').where('userId', isEqualTo: uid).where('status', isEqualTo: 'active').get();
-      if (cardSnap.docs.isEmpty) {
-        final cardId = firestore.collection('cards').doc().id;
-        final purchaseDate = DateTime.now().subtract(const Duration(days: 10)); // Current active card: 10 days ago
+      final uid = userUids[email]!;
+      await firestore.collection('deposits').add({
+        'userId': uid,
+        'amount': 15000000.0,
+        'status': 'approved',
+        'timestamp': Timestamp.fromDate(DateTime(2025, 9, 1, 10, 0)),
+        'processedAt': Timestamp.fromDate(DateTime(2025, 9, 1, 10, 30)),
+        'bankReference': 'SEED_START',
+      });
+      await firestore.collection('users').doc(uid).update({'balance': 15000000.0});
+    }
+
+    // Monthly Simulation
+    DateTime currentMonth = startMonth;
+    while (currentMonth.isBefore(now)) {
+      final isLastMonth = currentMonth.year == now.year && currentMonth.month == now.month;
+      
+      for (int i = 0; i < customerEmails.length; i++) {
+        final email = customerEmails[i];
+        final uid = userUids[email]!;
+        final partnerUid = userUids[gymEmails[i]]!; // Each cus uses their partner's gyms
+        final gyms = partnerGyms[partnerUid]!;
+        
+        // frequency: 20 -> 24 -> 28 -> 32 -> 36 -> 40
+        final monthDiff = (currentMonth.year - startMonth.year) * 12 + (currentMonth.month - startMonth.month);
+        final sessionCount = isLastMonth ? 20 : (20 + (monthDiff * 4)).clamp(20, 40);
+        
+        // A. Buy VIP Card
+        final cardId = 'card_${email.split('@')[0]}_${currentMonth.year}_${currentMonth.month}';
+        final cardStartDate = currentMonth;
+        final cardEndDate = currentMonth.add(Duration(days: 30));
+        final vipPrice = 5000000.0;
+        final vipLimit = vipPrice * 0.95;
+        
+        double usedValue = 0;
+        
         await firestore.collection('cards').doc(cardId).set({
           'userId': uid,
           'type': 'membership',
-          'status': 'active',
-          'colorIndex': 0,
-          'priceSnapshot': 5000000.0,
-          'membershipPrice': 5000000.0,
-          'usedValue': 200000.0, // Significant usage already
-          'startDate': Timestamp.fromDate(purchaseDate),
-          'endDate': Timestamp.fromDate(purchaseDate.add(const Duration(days: 30))), // Strictly 30 days
-          'purchasedAt': Timestamp.fromDate(purchaseDate),
+          'status': (isLastMonth && cardEndDate.isAfter(now)) ? 'active' : 'expired',
+          'colorIndex': i,
+          'priceSnapshot': vipPrice,
+          'membershipPrice': vipPrice,
+          'usedValue': 0, // Will update after sessions
+          'startDate': Timestamp.fromDate(cardStartDate),
+          'endDate': Timestamp.fromDate(cardEndDate),
+          'purchasedAt': Timestamp.fromDate(cardStartDate.add(const Duration(hours: 1))),
         });
-        cardIds.add(cardId);
-      } else {
-        cardIds.add(cardSnap.docs.first.id);
-      }
-    }
-
-    if (cardIds.isEmpty) throw 'Lỗi: Customer chưa có thẻ. Chạy Seed 1 trước.';
-
-    final now = DateTime.now();
-    for (int month = 0; month < 5; month++) {
-      int recordsInMonth = 12 + (month % 3); // 12, 13, 14 records/month
-      for (int k = 0; k < recordsInMonth; k++) {
-        final randomDay = (month * 30) + (k * 2) + 1;
-        final timestamp = now.subtract(Duration(days: randomDay, hours: k));
-        final dateStr = "${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}";
         
-        final cusId = userUids[customerEmails[k % customerEmails.length]]!;
-        final gymId = gymIds[k % gymIds.length];
-        final ownerUid = gymToOwner[gymId]!;
-        final cardId = cardIds[k % cardIds.length];
-        
+        // Record purchase transaction
+        await firestore.collection('users').doc(uid).update({'balance': FieldValue.increment(-vipPrice)});
+
+        // B. Generate Sessions
         final batch = firestore.batch();
-        batch.set(firestore.collection('revenue_logs').doc(), {
-          'partnerUid': ownerUid,
-          'gymId': gymId,
-          'gymName': 'Gym Seed ${(k % gymIds.length) + 1}',
-          'cardId': cardId,
-          'buyerUid': cusId,
-          'partnerEarned': 30000.0,
-          'feeRate': 0.1,
-          'timestamp': Timestamp.fromDate(timestamp),
-          'type': 'global_checkin',
-        });
-        batch.set(firestore.collection('sessions').doc(), {
-          'cardId': cardId, 'userId': cusId, 'gymId': gymId, 'date': dateStr,
-          'timestamp': Timestamp.fromDate(timestamp), 'valueCharged': 30000.0, 'checkedInBy': gymId,
-        });
-        batch.set(firestore.collection('checkins').doc(), {
-          'cardId': cardId, 'userId': cusId, 'userName': 'Guest ${k+1}', 'gymId': gymId,
-          'gymName': 'Gym Seed ${(k % gymIds.length) + 1}', 'timestamp': Timestamp.fromDate(timestamp), 'cardType': 'membership',
-        });
-        await batch.commit();
-      }
-    }
+        for (int s = 0; s < sessionCount; s++) {
+          final gymId = gyms[s % gyms.length];
+          final gymName = 'Gym ${gymId.split('_')[1]}';
+          final sessionPrice = gymPrices[gymId]! / 30;
+          
+          if (usedValue + sessionPrice > vipLimit) break;
+          
+          final day = (s * (30 / sessionCount)).floor() + 1;
+          final timestamp = currentMonth.add(Duration(days: day, hours: 17 + (s % 4)));
+          if (timestamp.isAfter(now)) break;
+          
+          final dateStr = "${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}";
+          
+          usedValue += sessionPrice;
 
-    for (final gymId in gymIds) {
-       final ownerUid = gymToOwner[gymId]!;
-       // Paid withdrawal from 4 months ago
-       await firestore.collection('withdrawals').add({
-         'partnerUid': ownerUid, 'gymId': gymId, 'amount': 150000.0, 'status': 'paid',
-         'timestamp': Timestamp.fromDate(now.subtract(const Duration(days: 125))),
-         'processedAt': Timestamp.fromDate(now.subtract(const Duration(days: 124))),
-         'bankInfo': {'name': 'VPBank', 'cardNumber': '123456789'},
-       });
-       // Pending withdrawal from 5 days ago
-       await firestore.collection('withdrawals').add({
-         'partnerUid': ownerUid, 'gymId': gymId, 'amount': 80000.0, 'status': 'pending',
-         'timestamp': Timestamp.fromDate(now.subtract(const Duration(days: 5))),
-         'bankInfo': {'name': 'VPBank', 'cardNumber': '123456789'},
-       });
+          final revenueLogRef = firestore.collection('revenue_logs').doc();
+          batch.set(revenueLogRef, {
+            'partnerUid': partnerUid,
+            'gymId': gymId,
+            'gymName': gymName,
+            'cardId': cardId,
+            'buyerUid': uid,
+            'partnerEarned': sessionPrice,
+            'feeRate': 0.1,
+            'timestamp': Timestamp.fromDate(timestamp),
+            'type': 'global_checkin',
+          });
+
+          final sessionRef = firestore.collection('sessions').doc();
+          batch.set(sessionRef, {
+            'cardId': cardId,
+            'userId': uid,
+            'gymId': gymId,
+            'date': dateStr,
+            'timestamp': Timestamp.fromDate(timestamp),
+            'valueCharged': sessionPrice,
+            'checkedInBy': gymId,
+          });
+
+          final checkinRef = firestore.collection('checkins').doc();
+          batch.set(checkinRef, {
+            'cardId': cardId,
+            'userId': uid,
+            'userName': 'Hội viên ${i + 1}',
+            'gymId': gymId,
+            'gymName': gymName,
+            'timestamp': Timestamp.fromDate(timestamp),
+            'cardType': 'membership',
+          });
+        }
+        await batch.commit();
+        
+        // Update card's final usedValue for the month
+        await firestore.collection('cards').doc(cardId).update({'usedValue': usedValue});
+      }
+      
+      // C. Monthly Settlements (for previous month)
+      if (!isLastMonth) {
+        for (final partnerEmail in gymEmails) {
+          final pid = userUids[partnerEmail]!;
+          final settlementAmount = 2000000.0 + (currentMonth.month * 500000.0); // Rough estimate for demo
+          
+          await firestore.collection('settlements').add({
+            'partnerUid': pid,
+            'amount': settlementAmount,
+            'status': 'paid',
+            'periodStart': Timestamp.fromDate(currentMonth),
+            'periodEnd': Timestamp.fromDate(currentMonth.add(const Duration(days: 30))),
+            'timestamp': Timestamp.fromDate(currentMonth.add(const Duration(days: 31, hours: 10))),
+            'paidAt': Timestamp.fromDate(currentMonth.add(const Duration(days: 32, hours: 14))),
+            'bankInfo': {'name': 'VPBank', 'cardNumber': '999_SETTLE'},
+          });
+        }
+      }
+
+      currentMonth = DateTime(currentMonth.year, currentMonth.month + 1, 1);
     }
   }
 

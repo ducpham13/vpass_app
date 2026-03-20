@@ -100,7 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const Divider(color: Colors.white10),
             _buildSeedTile(
               title: 'Seed 2: Historical Data',
-              subtitle: '3 months of logs (10-15 entries/mo)',
+              subtitle: 'From Sep 2025: Increasing frequency & revenue',
               icon: Icons.history,
               color: Colors.orange,
               onTap: () async {
