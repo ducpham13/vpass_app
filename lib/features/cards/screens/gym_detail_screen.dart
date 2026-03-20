@@ -23,7 +23,7 @@ class GymDetailScreen extends ConsumerStatefulWidget {
 class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
   bool _isPurchasing = false;
   bool _isSaving = false;
-  
+
   // Editing state
   bool _isEditingImage = false;
   bool _isEditingDescription = false;
@@ -34,7 +34,9 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
   void initState() {
     super.initState();
     _imageUrlController = TextEditingController(text: widget.gym.imageUrl);
-    _descriptionController = TextEditingController(text: widget.gym.description);
+    _descriptionController = TextEditingController(
+      text: widget.gym.description,
+    );
   }
 
   @override
@@ -46,11 +48,13 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
 
   Future<void> _handleSave() async {
     setState(() => _isSaving = true);
-    final success = await ref.read(gymRepositoryProvider).updateGymProfile(
-      widget.gym.id,
-      imageUrl: _imageUrlController.text,
-      description: _descriptionController.text,
-    );
+    final success = await ref
+        .read(gymRepositoryProvider)
+        .updateGymProfile(
+          widget.gym.id,
+          imageUrl: _imageUrlController.text,
+          description: _descriptionController.text,
+        );
 
     if (mounted) {
       setState(() {
@@ -60,11 +64,17 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
       });
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật thông tin thành công!'), backgroundColor: AppColors.success),
+          const SnackBar(
+            content: Text('Cập nhật thông tin thành công!'),
+            backgroundColor: AppColors.success,
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật thất bại. Vui lòng thử lại.'), backgroundColor: AppColors.danger),
+          const SnackBar(
+            content: Text('Cập nhật thất bại. Vui lòng thử lại.'),
+            backgroundColor: AppColors.danger,
+          ),
         );
       }
     }
@@ -76,22 +86,32 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
 
     if (user.balance < widget.gym.pricePerMonth) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Số dư không đủ. Vui lòng nạp thêm tiền.')),
+        const SnackBar(
+          content: Text('Số dư không đủ. Vui lòng nạp thêm tiền.'),
+        ),
       );
       return;
     }
 
     setState(() => _isPurchasing = true);
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.backgroundSurface,
         title: const Text('Xác nhận mua thẻ'),
-        content: Text('Bạn có chắc chắn muốn mua thẻ hội viên tại ${widget.gym.name} với giá ${NumberFormat("#,###").format(widget.gym.pricePerMonth)}đ không?'),
+        content: Text(
+          'Bạn có chắc chắn muốn mua thẻ hội viên tại ${widget.gym.name} với giá ${NumberFormat("#,###").format(widget.gym.pricePerMonth)}đ không?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('HỦY')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('XÁC NHẬN')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('XÁC NHẬN'),
+          ),
         ],
       ),
     );
@@ -101,19 +121,23 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
       return;
     }
 
-    final success = await ref.read(gymRepositoryProvider).purchaseCard(user.uid, widget.gym);
-    
+    final success = await ref
+        .read(gymRepositoryProvider)
+        .purchaseCard(user.uid, widget.gym);
+
     if (mounted) {
       setState(() => _isPurchasing = false);
       if (success) {
         await ref.read(authProvider.notifier).refreshUserData();
-        
+
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppColors.backgroundSurface,
             title: const Text('Mua thẻ thành công!'),
-            content: Text('Bạn đã mua thành công thẻ hội viên tại ${widget.gym.name}.'),
+            content: Text(
+              'Bạn đã mua thành công thẻ hội viên tại ${widget.gym.name}.',
+            ),
             actions: [
               TextButton(
                 onPressed: () {
@@ -128,7 +152,9 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Giao dịch thất bại. Vui lòng thử lại.')),
+          const SnackBar(
+            content: Text('Giao dịch thất bại. Vui lòng thử lại.'),
+          ),
         );
       }
     }
@@ -139,15 +165,20 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
     // Listen to real-time updates for this gym if we are the owner or viewer
     final gymStream = ref.watch(gymDetailProvider(widget.gym.id));
     final gym = gymStream.value ?? widget.gym;
-    
+
     final currentUser = ref.watch(authProvider).user;
     final bool isOwner = currentUser?.uid == gym.ownerUid;
 
     final activeCards = ref.watch(cardProvider).asData?.value ?? [];
-    final bool isOwned = activeCards.any((c) => c.isActive && c.gymId == gym.id);
-    final bool isVipActive = activeCards.any((c) => c.isMembership && c.gymId == null && c.isActive);
-    
-    final brandGradient = AppColors.cardGradients[gym.colorIndex % AppColors.cardGradients.length];
+    final bool isOwned = activeCards.any(
+      (c) => c.isActive && c.gymId == gym.id,
+    );
+    final bool isVipActive = activeCards.any(
+      (c) => c.isMembership && c.gymId == null && c.isActive,
+    );
+
+    final brandGradient = AppColors
+        .cardGradients[gym.colorIndex % AppColors.cardGradients.length];
     final navyBg = const Color(0xFF15192C);
 
     return Scaffold(
@@ -197,10 +228,10 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                     // 1. Gym Image Section (Editable for Owner)
                     _buildImageSection(gym, isOwner),
                     const SizedBox(height: 32),
-                    
+
                     // 2. Contract Info & Description
                     _buildContractInfo(gym, isOwner),
-                    
+
                     if (isOwner && (_isEditingImage || _isEditingDescription))
                       Padding(
                         padding: const EdgeInsets.only(top: 32),
@@ -210,7 +241,7 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                           onPressed: _handleSave,
                         ),
                       ),
-                      
+
                     const SizedBox(height: 120), // Space for bottom sheet
                   ],
                 ),
@@ -219,18 +250,22 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
           ),
         ],
       ),
-      bottomSheet: !isOwner ? Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: navyBg,
-          border: const Border(top: BorderSide(color: Colors.white10)),
-        ),
-        child: GalaxyButton(
-          text: isOwned ? 'BẠN ĐÃ SỞ HỮU' : (isVipActive ? 'BẠN ĐANG LÀ VIP' : 'MUA THẺ HỘI VIÊN'),
-          isLoading: _isPurchasing,
-          onPressed: (isOwned || isVipActive) ? null : _handlePurchase,
-        ),
-      ) : null,
+      bottomSheet: !isOwner
+          ? Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: navyBg,
+                border: const Border(top: BorderSide(color: Colors.white10)),
+              ),
+              child: GalaxyButton(
+                text: isOwned
+                    ? 'BẠN ĐÃ SỞ HỮU'
+                    : (isVipActive ? 'BẠN ĐANG LÀ VIP' : 'MUA THẺ HỘI VIÊN'),
+                isLoading: _isPurchasing,
+                onPressed: (isOwned || isVipActive) ? null : _handlePurchase,
+              ),
+            )
+          : null,
     );
   }
 
@@ -241,11 +276,23 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('HÌNH ẢNH PHÒNG TẬP', style: AppTextStyles.labelLarge.copyWith(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
+            Text(
+              'HÌNH ẢNH PHÒNG TẬP',
+              style: AppTextStyles.labelLarge.copyWith(
+                color: Colors.white38,
+                fontSize: 10,
+                letterSpacing: 1.2,
+              ),
+            ),
             if (isOwner)
               IconButton(
-                icon: Icon(_isEditingImage ? Icons.close : Icons.edit, size: 18, color: AppColors.accentCyan),
-                onPressed: () => setState(() => _isEditingImage = !_isEditingImage),
+                icon: Icon(
+                  _isEditingImage ? Icons.close : Icons.edit,
+                  size: 18,
+                  color: AppColors.accentCyan,
+                ),
+                onPressed: () =>
+                    setState(() => _isEditingImage = !_isEditingImage),
               ),
           ],
         ),
@@ -272,7 +319,8 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
                       color: Colors.white.withOpacity(0.05),
                       child: const Center(child: CircularProgressIndicator()),
                     ),
-                    errorWidget: (context, url, error) => _buildPlaceholderImage(),
+                    errorWidget: (context, url, error) =>
+                        _buildPlaceholderImage(),
                   )
                 : _buildPlaceholderImage(),
           ),
@@ -312,23 +360,48 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        _buildInfoTile('Địa chỉ', '${gym.address}, ${gym.city}', Icons.location_on_outlined),
-        _buildInfoTile('Giờ mở cửa', '${gym.openTime} - ${gym.closeTime}', Icons.access_time),
-        _buildInfoTile('Giá niêm yết', '${NumberFormat("#,###").format(gym.pricePerMonth)}đ/tháng', Icons.payments_outlined),
+        _buildInfoTile(
+          'Địa chỉ',
+          '${gym.address}, ${gym.city}',
+          Icons.location_on_outlined,
+        ),
+        _buildInfoTile(
+          'Giờ mở cửa',
+          '${gym.openTime} - ${gym.closeTime}',
+          Icons.access_time,
+        ),
+        _buildInfoTile(
+          'Giá niêm yết',
+          '${NumberFormat("#,###").format(gym.pricePerMonth)}đ/tháng',
+          Icons.payments_outlined,
+        ),
         _buildInfoTile('Liên hệ', gym.partnerEmail, Icons.email_outlined),
-        
+
         const SizedBox(height: AppSpacing.md),
         const Divider(color: Colors.white10),
         const SizedBox(height: AppSpacing.md),
-        
+
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('MÔ TẢ PHÒNG TẬP', style: AppTextStyles.labelLarge.copyWith(color: Colors.white38, fontSize: 10, letterSpacing: 1.2)),
+            Text(
+              'MÔ TẢ PHÒNG TẬP',
+              style: AppTextStyles.labelLarge.copyWith(
+                color: Colors.white38,
+                fontSize: 10,
+                letterSpacing: 1.2,
+              ),
+            ),
             if (isOwner)
               IconButton(
-                icon: Icon(_isEditingDescription ? Icons.close : Icons.edit, size: 18, color: AppColors.accentCyan),
-                onPressed: () => setState(() => _isEditingDescription = !_isEditingDescription),
+                icon: Icon(
+                  _isEditingDescription ? Icons.close : Icons.edit,
+                  size: 18,
+                  color: AppColors.accentCyan,
+                ),
+                onPressed: () => setState(
+                  () => _isEditingDescription = !_isEditingDescription,
+                ),
               ),
           ],
         ),
@@ -344,12 +417,12 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
           )
         else
           Text(
-            gym.description.isNotEmpty 
-              ? gym.description 
-              : 'Phòng tập hiện đại với đầy đủ thiết bị, không gian sạch sẽ thoáng mát, phù hợp cho mọi đối tượng từ cơ bản đến chuyên sâu.',
+            gym.description.isNotEmpty
+                ? gym.description
+                : 'Phòng tập hiện đại với đầy đủ thiết bị, không gian sạch sẽ thoáng mát, phù hợp cho mọi đối tượng từ cơ bản đến chuyên sâu.',
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
           ),
-          
+
         const SizedBox(height: 24),
         Text('Điều khoản hội viên', style: AppTextStyles.labelLarge),
         const SizedBox(height: AppSpacing.xs),
@@ -371,7 +444,13 @@ class _GymDetailScreenState extends ConsumerState<GymDetailScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: AppTextStyles.labelLarge.copyWith(color: Colors.white38, fontSize: 10)),
+              Text(
+                label,
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: Colors.white38,
+                  fontSize: 10,
+                ),
+              ),
               Text(value, style: AppTextStyles.bodyMedium),
             ],
           ),

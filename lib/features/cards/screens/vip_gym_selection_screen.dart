@@ -12,13 +12,11 @@ import 'card_detail_sheet.dart';
 class VipGymSelectionScreen extends ConsumerStatefulWidget {
   final CardModel card;
 
-  const VipGymSelectionScreen({
-    super.key,
-    required this.card,
-  });
+  const VipGymSelectionScreen({super.key, required this.card});
 
   @override
-  ConsumerState<VipGymSelectionScreen> createState() => _VipGymSelectionScreenState();
+  ConsumerState<VipGymSelectionScreen> createState() =>
+      _VipGymSelectionScreenState();
 }
 
 class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
@@ -34,6 +32,8 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final gymsAsync = ref.watch(gymsProvider);
+    final cardAsync = ref.watch(cardDetailProvider(widget.card.id));
+    final card = cardAsync.value ?? widget.card;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundPrimary,
@@ -44,7 +44,13 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
         actions: [
           TextButton(
             onPressed: () => _handleCancel(context, ref),
-            child: const Text('HỦY THẺ', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'HỦY THẺ',
+              style: TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -55,12 +61,16 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: TextField(
               controller: _searchController,
-              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.toLowerCase()),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Tìm theo tên phòng, khu vực...',
                 hintStyle: const TextStyle(color: Colors.white24),
-                prefixIcon: const Icon(Icons.search, color: AppColors.accentCyan),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppColors.accentCyan,
+                ),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.05),
                 border: OutlineInputBorder(
@@ -84,16 +94,21 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
 
                 if (filteredGyms.isEmpty) {
                   return const Center(
-                    child: Text('Không tìm thấy phòng tập nào', style: TextStyle(color: Colors.white38)),
+                    child: Text(
+                      'Không tìm thấy phòng tập nào',
+                      style: TextStyle(color: Colors.white38),
+                    ),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   itemCount: filteredGyms.length,
                   itemBuilder: (context, index) {
                     final gym = filteredGyms[index];
-                    return _buildGymItem(context, gym);
+                    return _buildGymItem(context, gym, card);
                   },
                 );
               },
@@ -106,11 +121,11 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
     );
   }
 
-  Widget _buildGymItem(BuildContext context, GymModel gym) {
+  Widget _buildGymItem(BuildContext context, GymModel gym, CardModel card) {
     // Calculate sessions
     int estimatedRemaining = 0;
-    final limit = (widget.card.membershipPrice ?? 0) * 0.95;
-    final remainingValue = limit - widget.card.usedValue;
+    final limit = (card.membershipPrice ?? 0) * 0.95;
+    final remainingValue = limit - card.usedValue;
     final sessionPrice = gym.pricePerMonth / 30;
     if (remainingValue > 0 && sessionPrice > 0) {
       estimatedRemaining = (remainingValue / sessionPrice).floor();
@@ -125,7 +140,7 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (context) => CardDetailSheet(card: widget.card, initialGym: gym),
+          builder: (context) => CardDetailSheet(card: card, initialGym: gym),
         );
       },
     );
@@ -137,9 +152,14 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.backgroundSurface,
         title: const Text('Xác nhận hủy thẻ VIP'),
-        content: const Text('Bạn có chắc chắn muốn hủy thẻ VIP Global này không? Sau khi hủy, bạn sẽ không thể tập tại bất kỳ phòng tập nào trong hệ thống.'),
+        content: const Text(
+          'Bạn có chắc chắn muốn hủy thẻ VIP Global này không? Sau khi hủy, bạn sẽ không thể tập tại bất kỳ phòng tập nào trong hệ thống.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('KHÔNG')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('KHÔNG'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
@@ -150,15 +170,20 @@ class _VipGymSelectionScreenState extends ConsumerState<VipGymSelectionScreen> {
     );
 
     if (confirmed == true) {
-      await ref.read(cardRepositoryProvider).updateCardStatus(
-        widget.card.id, 
-        'expired',
-        reason: 'Cancelled by User',
-      );
+      await ref
+          .read(cardRepositoryProvider)
+          .updateCardStatus(
+            widget.card.id,
+            'expired',
+            reason: 'Cancelled by User',
+          );
       if (context.mounted) {
         Navigator.pop(context); // Back to cards screen
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã hủy thẻ VIP thành công.'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Đã hủy thẻ VIP thành công.'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     }
